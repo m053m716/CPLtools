@@ -1,0 +1,16 @@
+channel_groups = {
+    # Shank index.
+    %d:
+        {
+            # List of channels on this shank
+            'channels': [%d],
+
+            # Adjacency graph
+            'graph': [],
+
+            # 2D position for visualization
+            'geometry': {
+				%d: (%d, %d)
+            }
+		}
+	}
