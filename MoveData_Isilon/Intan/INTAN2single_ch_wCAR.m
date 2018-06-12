@@ -19,6 +19,18 @@ FILT_ID     = '_Filtered';                            % Filtered stream ID
 CAR_ID     = '_FilteredCAR';                            % Filtered stream ID
 DIG_ID      = '_Digital';                             % Digital stream ID
 
+% Filter params
+STATE_FILTER = true; % Flag to emulate hardware high-pass filter (if true)
+
+FS = 20000;       % Sampling Frequency
+FSTOP1 = 250;     % First Stopband Frequency
+FPASS1 = 300;     % First Passband Frequency
+FPASS2 = 3000;    % Second Passband Frequency
+FSTOP2 = 3050;    % Second Stopband Frequency
+ASTOP1 = 70;      % First Stopband Attenuation (dB)
+APASS  = 0.001;   % Passband Ripple (dB)
+ASTOP2 = 70;      % Second Stopband Attenuation (dB)
+
 %% PARSE VARARGIN
 if nargin==1
     varargin = varargin{1};
@@ -580,10 +592,25 @@ if (num_amplifier_channels > 0)
             chnum = amplifier_channels(iCh).custom_channel_name(2:4);
             fname = sprintf(paths.RW_N, pnum, chnum); 
             data = single(block.streams.Wave.data(iCh,:));
-            fs = block.streams.Wave.fs;
+            if isfield(block.streams.Wave,'fs')
+               fs = block.streams.Wave.fs;
+            else
+               fs = FS;
+            end
             save(fname,'data','fs','gitInfo','-v7.3');
-            [~, bpFilt] = extractionBandPassFilt('FS',fs);
-            block.streams.Wave.data(iCh,:) = filtfilt(bpFilt,double(data));
+            if STATE_FILTER
+               block.streams.Wave.data(iCh,:) = HPF(double(data),FPASS1,fs);
+            else
+               [~, bpFilt] = extractionBandPassFilt('FS',fs,...
+                                                    'FSTOP1',FSTOP1,...
+                                                    'FPASS1',FPASS1,...
+                                                    'FPASS2',FPASS2,...
+                                                    'FSTOP2',FSTOP2,...
+                                                    'ASTOP1',ASTOP1,...
+                                                    'APASS',APASS,...
+                                                    'ASTOP2',ASTOP2); %#ok<UNRCH>
+               block.streams.Wave.data(iCh,:) = filtfilt(bpFilt,double(data));
+            end
             fname = sprintf(paths.FW_N, pnum, chnum);
             data = single(block.streams.Wave.data(iCh,:));  % DTB: removed CAR until after checking for clean data
             save(fname,'data','fs','gitInfo','-v7.3');
@@ -592,7 +619,6 @@ if (num_amplifier_channels > 0)
         clear data
         board_stream = [amplifier_channels.board_stream];
         nProbes = numel(unique(board_stream));
-        
         
         for iN = 1:nProbes
             fprintf(1,'\t->Automatically re-referencing (Probe %d of %d)',...

@@ -30,6 +30,7 @@ DATATYPE = 'Intan';         % Acquisition system (leave as TDT)
 STIM_SUPPRESS = false;      % set true to do stimulus suppression (must change STIM_P_CH also)
 STIM_P_CH = [nan nan];      % [probe, channel] for stimulation channel
 STIM_BLANK = [0.2 1.75];    % [pre stim ms, post stim ms] for offline suppress
+STATE_FILTER = true;
 
 % For finding clusters
 CLUSTER_LIST = {'CPLMJS'; ...
@@ -123,7 +124,8 @@ for iF = 1:numel(F)
                'GITINFO',gitInfo,...
                'STIM_SUPPRESS',STIM_SUPPRESS,...
                'STIM_P_CH',STIM_P_CH,...
-               'STIM_BLANK',STIM_BLANK};
+               'STIM_BLANK',STIM_BLANK,...
+			   'STATE_FILTER',STATE_FILTER};
                    
     switch(ftype{iF})
         case 'rhs'   

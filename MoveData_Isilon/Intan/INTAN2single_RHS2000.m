@@ -15,27 +15,24 @@ function INTAN2single_RHS2000(varargin)
 DEFTANK = 'R:/Rat/Intan';       % Default tank path for file-selection UI
 SAVELOC = 'P:/Extracted_Data_To_Move/Rat/Intan';
 
-RAW_ID      = '_RawData';                             % Raw stream ID
-FILT_ID     = '_Filtered';                            % Filtered stream ID
-CAR_ID     = '_FilteredCAR';                            % Filtered stream ID
-DIG_ID      = '_Digital';                             % Digital stream ID
+RAW_ID      = '_RawData';                 % Raw stream ID
+FILT_ID     = '_Filtered';                % Filtered stream ID
+CAR_ID     = '_FilteredCAR';              % Spatial re-reference stream ID
+DIG_ID      = '_Digital';                 % Digital stream ID
 STIM_SUPPRESS = false;
 STIM_P_CH = [nan, nan];
 STIM_BLANK = [1 3];
 
 % Filter command
-FSTOP1 = 250;     % First Stopband Frequency
-FPASS1 = 300;     % First Passband Frequency
-FPASS2 = 3000;    % Second Passband Frequency
-FSTOP2 = 3050;    % Second Stopband Frequency
-ASTOP1 = 70;      % First Stopband Attenuation (dB)
-APASS  = 0.001;   % Passband Ripple (dB)
-ASTOP2 = 70;      % Second Stopband Attenuation (dB)
-MATCH  = 'both';  % Band to match exactly
-
-% RP          = 0.001;     % Passband ripple
-% RS          = 70;        % Stopband attenuation
-% ORD         = 8;         % Filter order
+STATE_FILTER = true; % Flag to emulate hardware high-pass filter (if true)
+FSTOP1 = 250;        % First Stopband Frequency
+FPASS1 = 300;        % First Passband Frequency
+FPASS2 = 3000;       % Second Passband Frequency
+FSTOP2 = 3050;       % Second Stopband Frequency
+ASTOP1 = 70;         % First Stopband Attenuation (dB)
+APASS  = 0.001;      % Passband Ripple (dB)
+ASTOP2 = 70;         % Second Stopband Attenuation (dB)
+MATCH  = 'both';     % Band to match exactly
 
 %% PARSE VARARGIN
 for iV = 1:2:length(varargin)
@@ -522,26 +519,6 @@ if (data_present)
     % Scale time steps (units = seconds).
     t = t / sample_rate;
 
-%     % If the software notch filter was selected during the recording, apply the
-%     % same notch filter to amplifier data here.
-%     if (notch_filter_frequency > 0)
-%         fprintf(1, 'Applying notch filter...\n');
-% 
-%         print_increment = 10;
-%         percent_done = print_increment;
-%         for i=1:num_amplifier_channels
-%             amplifier_data(i,:) = ...
-%                 notch_filter(amplifier_data(i,:), sample_rate, notch_filter_frequency, 10);
-% 
-%             fraction_done = 100 * (i / num_amplifier_channels);
-%             if (fraction_done >= percent_done)
-%                 fprintf(1, '%d%% done...\n', percent_done);
-%                 percent_done = percent_done + print_increment;
-%             end
-% 
-%         end
-%     end
-
 end
 
 % Save Data.
@@ -574,29 +551,34 @@ if (num_amplifier_channels > 0)
         
         % Get filter specs
         FS = sample_rate;  % Sampling Frequency
-%         WP = [300 3000]/(0.5*sample_rate);
-        filtspecs = struct( ...
-            'FS', FS, ...
-            'FSTOP1', FSTOP1, ...
-            'FPASS1', FPASS1, ...
-            'FPASS2', FPASS2, ...
-            'FSTOP2', FSTOP2, ...
-            'ASTOP1', ASTOP1, ...
-            'APASS', APASS, ...
-            'ASTOP2', ASTOP2, ...
-            'MATCH', MATCH);
-
-%         filtspecs = struct( ...
-%         'ORD', ORD, ...
-%         'RP', RP, ...
-%         'RS', RS, ...
-%         'WP', WP);
-
-%         [b,a] = ellip(ORD,RP,RS,WP);
-        [~, bp_Filt] = BandPassFilt('FS', FS, 'FSTOP1', FSTOP1, 'FPASS1', FPASS1, ...
-            'FPASS2', FPASS2, 'FSTOP2', FSTOP2, 'ASTOP1', ASTOP1, 'APASS', APASS, ...
-            'ASTOP2', ASTOP2, 'MATCH', MATCH);
-
+        
+        if STATE_FILTER
+           filtspecs = struct('FS',FS,...
+                              'FPASS1',FPASS1,...
+                              'FTYPE','HARDWARE_STATE_HIGHPASS');
+        else
+           filtspecs = struct( ...
+               'FS', FS, ...
+               'FSTOP1', FSTOP1, ...
+               'FPASS1', FPASS1, ...
+               'FPASS2', FPASS2, ...
+               'FSTOP2', FSTOP2, ...
+               'ASTOP1', ASTOP1, ...
+               'APASS', APASS, ...
+               'ASTOP2', ASTOP2, ...
+               'MATCH', MATCH,...
+               'FTYPE', 'CUSTOM_FIR_BANDPASS');
+            [~, bpFilt] = BandPassFilt('FS', FS, ...
+                                       'FSTOP1', FSTOP1, ...
+                                       'FPASS1', FPASS1, ...
+                                       'FPASS2', FPASS2, ...
+                                       'FSTOP2', FSTOP2, ...
+                                       'ASTOP1', ASTOP1, ...
+                                       'APASS',  APASS, ...
+                                       'ASTOP2', ASTOP2, ...
+                                       'MATCH', MATCH);
+        end
+        
         % Save amplifier_data by probe/channel
         paths.RW_N = strrep(paths.RW_N, '\', '/');
         for iCh = 1:num_amplifier_channels
@@ -618,9 +600,13 @@ if (num_amplifier_channels > 0)
                    save(filt_infoname,'filtspecs','gitInfo','-v7.3');
                end
 
-               data = single(filtfilt(bp_Filt,double(data)));
+               % Filter and and save amplifier_data by probe/channel
+               if STATE_FILTER
+                  data = single(HPF(double(amplifier_data(iCh,:)),FPASS1,fs));
+               else
+                  data = single(filtfilt(bpFilt,double(amplifier_data(iCh,:))));    %#ok<UNRCH>
+               end
                hold_filt(iCh,:) = data;
-   %             data = single(filtfilt(b,a,double(data)));
                fname = sprintf(paths.FW_N, pnum, chnum);
                save(fname,'data','fs','gitInfo','-v7.3');
             end
@@ -797,63 +783,4 @@ end
 
 return
 
-
-% function out = notch_filter(in, fSample, fNotch, Bandwidth)
-% 
-% % out = notch_filter(in, fSample, fNotch, Bandwidth)
-% %
-% % Implements a notch filter (e.g., for 50 or 60 Hz) on vector 'in'.
-% % fSample = sample rate of data (in Hz or Samples/sec)
-% % fNotch = filter notch frequency (in Hz)
-% % Bandwidth = notch 3-dB bandwidth (in Hz).  A bandwidth of 10 Hz is
-% %   recommended for 50 or 60 Hz notch filters; narrower bandwidths lead to
-% %   poor time-domain properties with an extended ringing response to
-% %   transient disturbances.
-% %
-% % Example:  If neural data was sampled at 30 kSamples/sec
-% % and you wish to implement a 60 Hz notch filter:
-% %
-% % out = notch_filter(in, 30000, 60, 10);
-% 
-% tstep = 1/fSample;
-% Fc = fNotch*tstep;
-% 
-% L = length(in);
-% 
-% % Calculate IIR filter parameters
-% d = exp(-2*pi*(Bandwidth/2)*tstep);
-% b = (1 + d*d)*cos(2*pi*Fc);
-% a0 = 1;
-% a1 = -b;
-% a2 = d*d;
-% a = (1 + d*d)/2;
-% b0 = 1;
-% b1 = -2*cos(2*pi*Fc);
-% b2 = 1;
-% 
-% out = zeros(size(in));
-% out(1) = in(1);  
-% out(2) = in(2);
-% % (If filtering a continuous data stream, change out(1) and out(2) to the
-% %  previous final two values of out.)
-% 
-% % Run filter
-% for i=3:L
-%     out(i) = (a*b2*in(i-2) + a*b1*in(i-1) + a*b0*in(i) - a2*out(i-2) - a1*out(i-1))/a0;
-% end
-% 
-% return
-
-
-% function move_to_base_workspace(variable)
-% 
-% % move_to_base_workspace(variable)
-% %
-% % Move variable from function workspace to base MATLAB workspace so
-% % user will have access to it after the program ends.
-% 
-% variable_name = inputname(1);
-% assignin('base', variable_name, variable);
-% 
-% return;
 
