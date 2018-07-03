@@ -26,7 +26,14 @@ behaviorData(isnan(behaviorData.Reach),:) = [];
 
 behaviorData.Button = [];
 
-tVid = linspace(tEvent.sync.start,tEvent.sync.stop,tEvent.sync.nFrames);
+if ~isinf(tEvent.sync.stop)
+   tVid = linspace(tEvent.sync.start,tEvent.sync.stop,tEvent.sync.nFrames);
+else
+   tVid = tEvent.sync.start:...
+         (1/tEvent.sync.frameRate):...
+         ((tEvent.sync.nFrames-1)/tEvent.sync.frameRate);
+end
+      
 behaviorData.Reach = tVid(behaviorData.Reach).';
 behaviorData.Grasp = tVid(behaviorData.Grasp).';
 

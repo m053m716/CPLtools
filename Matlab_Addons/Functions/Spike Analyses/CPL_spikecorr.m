@@ -25,7 +25,7 @@ function out = CPL_spikecorr(ts1,ts2,fs,varargin)
 
 %% DEFAULTS
 TLIM = [-100 100];     % Limits for binning vector (ms)
-BIN = 1;               % Bin width (ms)
+BIN = 2.5;             % Bin width (ms)
 
 SHOW_PROGRESS = true; % Show progress bar
 

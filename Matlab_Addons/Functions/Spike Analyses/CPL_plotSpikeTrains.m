@@ -82,19 +82,19 @@ for ii = 1:numel(F)
           'WindowStyle','docked');
        
    subplot(2,2,1);
-   CPL_plotRaster(byUnit{ii}(iLeft),'PlotType','vertline');
+   CPL_plotSpikeRaster(byUnit{ii}(iLeft),'PlotType','vertline');
    title('Reach - L');
    
    subplot(2,2,2);
-   CPL_plotRaster(byUnit{ii}(iRight),'PlotType','vertline');
+   CPL_plotSpikeRaster(byUnit{ii}(iRight),'PlotType','vertline');
    title('Reach - R');
    
    subplot(2,2,3);
-   CPL_plotRaster(byUnitG{ii}(iLeft),'PlotType','vertline');
+   CPL_plotSpikeRaster(byUnitG{ii}(iLeft),'PlotType','vertline');
    title('Grasp - L');
    
    subplot(2,2,4);
-   CPL_plotRaster(byUnitG{ii}(iRight),'PlotType','vertline');
+   CPL_plotSpikeRaster(byUnitG{ii}(iRight),'PlotType','vertline');
    title('Grasp - R');
    
    suptitle([strrep(block,'_','-') ': Channel ' num2str(ii-1,'%02g')]);

@@ -83,13 +83,14 @@ tEvent.tRecord = 0:(1/sync.fs):((numel(sync.data)-1)/sync.fs);
 
 
 tEvent.sync = struct;
-tEvent.sync.start = tEvent.tRecord(find(sync.data>0,1,'first'));
+start = find(sync.data>0,1,'first');
+tEvent.sync.start = tEvent.tRecord(start);
 tEvent.sync.stop = tEvent.tRecord(...
-   find(sync.data(tEvent.sync.start:end)<1,1,'first')+...
+   find(sync.data(start:end)<1,1,'first')+...
    find(sync.data>0,1,'first')-1);
 if isempty(tEvent.sync.stop)
    warning('Movie was still recording at end of ePhys record.');
-   tEvent.sync.stop = tEvent.tRecord(end);
+   tEvent.sync.stop = inf;
 end
 tEvent.sync.units = 'seconds';
 
