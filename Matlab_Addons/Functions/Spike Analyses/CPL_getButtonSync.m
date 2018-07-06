@@ -27,7 +27,7 @@ function tEvent = CPL_getButtonSync(nFrames,frameRate,tEvent)
 
 %% DEFAULT
 EVENT_ID = '_tEvent.mat';
-EXCEL_ID = '_Scoring.xlsx';
+SCORING_ID = '_Scoring.dat';
 
 %% SIMPLE SCRIPT: FIND CLOSEST APPROXIMATE TIME TO BUTTON PUSH
 frameTimes = 0:(1/frameRate):(nFrames-1)/frameRate;
@@ -45,18 +45,26 @@ tEvent.sync.frameRate = frameRate;
 fname = fullfile(tEvent.block,[tEvent.name EVENT_ID]);
 if exist(fname,'file')==0
    save(fname,'tEvent','-v7.3');
-   xlswrite(fullfile(tEvent.block,[tEvent.name EXCEL_ID]),...
-      {'Button','Reach','Grasp','Outcome','Forelimb'},'Sheet1','A1:E1');
-   xlswrite(fullfile(tEvent.block,[tEvent.name EXCEL_ID]),...
-      tEvent.button,'Sheet1','A2');
+   doWrite = true;
 else
    btn = questdlg(sprintf('%s exists already. Overwrite?',fname),...
       'Overwrite File?','Yes','No','Yes');
    if strcmp(btn,'Yes')
+      doWrite = true;
       save(fname,'tEvent','-v7.3');
-      xlswrite(fullfile(tEvent.block,[tEvent.name EXCEL_ID]),...
-         {'Button','Reach','Grasp','Outcome','Forelimb'},'Sheet1','A1:E1');
-      xlswrite(fullfile(tEvent.block,[tEvent.name EXCEL_ID]),...
-         tEvent.button,'Sheet1','A2');
+   else
+      doWrite = false;
    end
+end
+
+if doWrite
+   fname = fullfile(tEvent.block,[tEvent.name SCORING_ID]);
+   writer = CPL_BehaviorWriter('Filename',fname);
+   
+   step(writer,tEvent.button);
+   release(writer);
+
+end
+
+
 end

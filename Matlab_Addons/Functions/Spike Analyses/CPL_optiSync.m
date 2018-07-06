@@ -12,6 +12,22 @@ function [tEvent,sync,user] = CPL_optiSync(varargin)
 %                                         path name to recording BLOCK
 %                                         directory.
 %
+%                    -> 'N_FRAMES' [def: NaN]; Scalar int for the number of
+%                                              frames in the video file. If
+%                                              specified in conjunction 
+%                                              with FRAME_RATE, speeds up 
+%                                              the process slightly (no 
+%                                              popup box or loading of
+%                                              VideoReader file).
+%
+%                    -> 'FRAME_RATE' [def: NaN]; Scalar for the number of
+%                                              frames per second. If
+%                                              specified in conjunction with
+%                                              N_FRAMES, speeds up the
+%                                              process slightly (no popup
+%                                              box or loading of
+%                                              VideoReader file).
+%
 %  --------
 %   OUTPUT
 %  --------
@@ -33,6 +49,10 @@ function [tEvent,sync,user] = CPL_optiSync(varargin)
 % By: Max Murphy  v1.0  05/03/2018  Original version (R2017b)
 
 %% DEFAULTS
+% Optional args to skip popups or file load
+N_FRAMES = nan;
+FRAME_RATE = nan;
+
 % Path info
 DIR = nan;
 DEF_DIR = 'P:\Rat\BilateralReach\Murphy';
@@ -46,7 +66,7 @@ DIG_DIR = '_Digital';
 DIG_ID = '_DIG';
 SYNC_ID = '_sync.mat';
 USER_ID = '_user.mat';
-
+VID_ID = '_Cam-*.mp4';
 
 %% PARSE VARARGIN
 for iV = 1:2:numel(varargin)
@@ -66,17 +86,17 @@ else % Parse format
    end
 end
 
-name = strsplit(DIR,filesep);
-name = name{end};
+Name = strsplit(DIR,filesep);
+Name = Name{end};
 
 %% LOAD DATA
-sync = load(fullfile(DIR,[name DIG_DIR],[name DIG_ID SYNC_ID]));
-user = load(fullfile(DIR,[name DIG_DIR],[name DIG_ID USER_ID]));
+sync = load(fullfile(DIR,[Name DIG_DIR],[Name DIG_ID SYNC_ID]));
+user = load(fullfile(DIR,[Name DIG_DIR],[Name DIG_ID USER_ID]));
 
 %% GET SYNC DATA
 tEvent = struct;
 
-tEvent.name = name;
+tEvent.name = Name;
 tEvent.block = DIR;
 
 tEvent.tRecord = 0:(1/sync.fs):((numel(sync.data)-1)/sync.fs);
@@ -122,16 +142,29 @@ end
 
 %% (OPTIONALLY) PROMPT FOR # FRAMES & FRAMERATE (MOTIVE)
 if COMBINE
-   prompt = {'Enter number of video frames:', ...
-             'Enter video framerate:'};
-   dlg_title = 'MOTIVE info input';
-   num_lines = 1;
-   default_answer = {'#####','100'};
-   answer = inputdlg(prompt,dlg_title,num_lines,default_answer);
+   F = dir(fullfile(DIR,[Name VID_ID]));
    
-   nFrames = str2double(answer{1});
-   frameRate = str2double(answer{2});
-   
+   if isnan(N_FRAMES) || isnan(FRAME_RATE)
+      if isempty(F)
+         prompt = {'Enter number of video frames:', ...
+                   'Enter video framerate:'};
+         dlg_title = 'MOTIVE info input';
+         num_lines = 1;
+         default_answer = {'#####','100'};
+         answer = inputdlg(prompt,dlg_title,num_lines,default_answer);
+
+         nFrames = str2double(answer{1});
+         frameRate = str2double(answer{2});
+      else
+         V = VideoReader(fullfile(DIR,F(1).name));
+         frameRate = V.FrameRate;
+         nFrames = round(V.Duration * frameRate);
+      end
+   else
+      frameRate = FRAME_RATE;
+      nFrames = N_FRAMES;
+   end
+
    tEvent = CPL_getButtonSync(nFrames,frameRate,tEvent);
 end
 
