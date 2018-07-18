@@ -117,6 +117,7 @@ paths.RW_N = fullfile(paths.RW,[Animal '_' Rec '_Raw_P%s_Ch_%s.mat']);
 paths.FW_N = fullfile(paths.FW,[Animal '_' Rec '_Filt_P%s_Ch_%s.mat']);
 paths.CARW_N = fullfile(paths.CARW,[Animal '_' Rec '_FiltCAR_P%s_Ch_%.3s.mat']);
 paths.DW_N = fullfile(paths.DW,[Animal '_' Rec '_DIG_%s.mat']);
+paths.AW_N = fullfile(paths.DW,[Animal '_' Rec '_ANA_%s.mat']);
 
 % Check 'magic number' at beginning of file to make sure this is an Intan
 % Technologies RHS2000 data file.
@@ -661,14 +662,14 @@ end
 
 % Save single-channel adc data
 if (num_board_adc_channels > 0)
-    ADC_info = board_adc_channels;
+    info = board_adc_channels;
     paths.DW = strrep(paths.DW, '\', '/');
     infoname = fullfile(paths.DW,[Animal '_' Rec '_ADC_Info.mat']);
-    save(infoname,'ADC_info','gitInfo','-v7.3');
+    save(infoname,'info','gitInfo','-v7.3');
     if (data_present)
         for i = 1:num_board_adc_channels
-            paths.DW_N = strrep(paths.DW_N, '\', '/');
-            fname = sprintf(paths.DW_N, board_adc_channels(i).custom_channel_name); 
+            paths.DW_N = strrep(paths.AW_N, '\', '/');
+            fname = sprintf(paths.AW_N, board_adc_channels(i).custom_channel_name); 
             data = single(board_adc_data(i,:));           
             save(fname,'data','fs','gitInfo','-v7.3');            
         end
@@ -677,14 +678,14 @@ end
 
 % Save single-channel dac data
 if (num_board_dac_channels > 0)
-    DAC_info = board_dac_channels;
+    info = board_dac_channels;
     paths.DW = strrep(paths.DW, '\', '/');
     infoname = fullfile(paths.DW,[Animal '_' Rec '_DAC_Info.mat']);
-    save(infoname,'DAC_info','gitInfo','-v7.3');
+    save(infoname,'info','gitInfo','-v7.3');
     if (data_present)
         for i = 1:num_board_dac_channels
-            paths.DW_N = strrep(paths.DW_N, '\', '/');
-            fname = sprintf(paths.DW_N, board_dac_channels(i).custom_channel_name); 
+            paths.DW_N = strrep(paths.AW_N, '\', '/');
+            fname = sprintf(paths.AW_N, board_dac_channels(i).custom_channel_name); 
             data = single(board_dac_data(i,:));           
             save(fname,'data','fs','gitInfo','-v7.3');            
         end
@@ -693,10 +694,10 @@ end
 
 % Save single-channel digital input data
 if (num_board_dig_in_channels > 0)
-    DigI_info = board_dig_in_channels;
+    info = board_dig_in_channels;
     paths.DW = strrep(paths.DW, '\', '/');
     infoname = fullfile(paths.DW,[Animal '_' Rec '_Digital_Input_Info.mat']);
-    save(infoname,'DigI_info','gitInfo','-v7.3');
+    save(infoname,'info','gitInfo','-v7.3');
     if (data_present)
         for i = 1:num_board_dig_in_channels
             paths.DW_N = strrep(paths.DW_N, '\', '/');
@@ -709,10 +710,10 @@ end
 
 % Save single-channel digital output data
 if (num_board_dig_out_channels > 0)
-    DigO_info = board_dig_out_channels;
+    info = board_dig_out_channels;
     paths.DW = strrep(paths.DW, '\', '/');
     infoname = fullfile(paths.DW,[Animal '_' Rec '_Digital_Output_Info.mat']);
-    save(infoname,'DigO_info','gitInfo','-v7.3');
+    save(infoname,'info','gitInfo','-v7.3');
     if (data_present)
         for i = 1:num_board_dig_out_channels
             fname = sprintf(paths.DW_N, board_dig_out_channels(i).custom_channel_name); 

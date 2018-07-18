@@ -61,6 +61,7 @@ if exist('NAME', 'var') == 0
     
     NAME = [path, file];
     file = file(1:end-4); %remove extension
+   
     
 else    % If a pre-specified path exists, must be a valid path.
     
@@ -118,9 +119,15 @@ if exist(paths.DW,'dir')==0
 end
 
 paths.RW_N = fullfile(paths.RW,[Animal '_' Rec '_Raw_P%s_Ch_%s.mat']);
+paths.RW_N = strrep(paths.RW_N,'\','/');
 paths.FW_N = fullfile(paths.FW,[Animal '_' Rec '_Filt_P%s_Ch_%s.mat']);
+paths.FW_N = strrep(paths.FW_N,'\','/');
 paths.CARW_N = fullfile(paths.CARW,[Animal '_' Rec '_FiltCAR_P%s_Ch_%s.mat']);
+paths.CARW_N = strrep(paths.CARW_N,'\','/');
 paths.DW_N = fullfile(paths.DW,[Animal '_' Rec '_DIG_%s.mat']);
+paths.DW_N = strrep(paths.DW_N,'\','/');
+paths.AW_N = fullfile(paths.DW,[Animal '_' Rec '_ANA_%s.mat']);
+paths.AW_N = strrep(paths.AW_N,'\','/');
 
 % Check 'magic number' at beginning of file to make sure this is an Intan
 % Technologies RHD2000 data file.
@@ -438,6 +445,9 @@ if (data_present)
     for i=1:num_board_dig_out_channels
         eval([board_dig_out_channels(i).custom_channel_name '=zeros(1,num_board_dig_out_samples);']);
     end
+    for i=1:num_board_adc_channels
+        eval([board_adc_channels(i).custom_channel_name '=zeros(1,num_board_adc_samples);']);
+    end
 
     % Read sampled data from file.
     fprintf(1, 'Reading data from file...\n');
@@ -532,6 +542,12 @@ if (data_present)
        cur_dig_out_data=zeros(size(block.streams.DigO.data));
        cur_dig_out_data(:) = (bitand(block.streams.DigO.data, mask) > 0);
        eval([board_dig_out_channels(i).custom_channel_name '=cur_dig_out_data;']);
+    end
+    for i=1:num_board_adc_channels
+       mask = 2^(board_adc_channels(i).native_order) * ones(size(block.streams.Badc.data));
+       cur_adc_data=zeros(size(block.streams.Badc.data));
+       cur_adc_data(:) = (bitand(block.streams.Badc.data, mask) > 0);
+       eval([board_adc_channels(i).custom_channel_name '=cur_adc_data;']);
     end
     
     % Scale voltage levels appropriately.
@@ -644,12 +660,12 @@ end
 % Save single-channel aux data
 
 if (num_aux_input_channels > 0)
-    Aux_info = aux_input_channels;
+    info = aux_input_channels;
     
     paths.DW = strrep(paths.DW, '\', '/');
     
     infoname = fullfile(paths.DW,[Animal '_' Rec '_Aux_Info.mat']);
-    save(infoname,'Aux_info','gitInfo','-v7.3');
+    save(infoname,'info','gitInfo','-v7.3');
     
     
     paths.DW_N = strrep(paths.DW_N, '\', '/');
@@ -667,15 +683,16 @@ if (num_aux_input_channels > 0)
     end
 end
 
+
 % Save single-channel digital input data
 
 if (num_board_dig_in_channels > 0)
-    DigI_info = board_dig_in_channels;
+    info = board_dig_in_channels;
     
     
     
     infoname = fullfile(paths.DW,[Animal '_' Rec '_Digital_Input_Info.mat']);
-    save(infoname,'DigI_info','gitInfo','-v7.3');
+    save(infoname,'info','gitInfo','-v7.3');
 
     
     
@@ -692,37 +709,31 @@ if (num_board_dig_in_channels > 0)
     end
 end
 
-% Save single-channel digital output data
-
-if (num_board_dig_out_channels > 0)
-
-    DigO_info = board_dig_out_channels;
-    infoname = fullfile(paths.DW,[Animal '_' Rec '_Digital_Output_Info.mat']);
-    save(infoname,'DigO_info','gitInfo','-v7.3');
+% Save single-channel analog input data
+block.streams.Badc.data = zeros(num_board_adc_channels, num_board_adc_samples);
+if (num_board_adc_channels > 0)
+    info = board_adc_channels;
     
+    infoname = fullfile(paths.DW,[Animal '_' Rec '_ADC_Info.mat']);
+    save(infoname,'info','gitInfo','-v7.3');
+
     if (data_present)
-        for i=1:num_board_dig_out_channels
-            fname = sprintf(paths.DW_N, board_dig_out_channels(i).custom_channel_name); 
+        for i=1:num_board_adc_channels
+            fname = sprintf(paths.AW_N, board_adc_channels(i).custom_channel_name); 
             
-            eval(['data = single(' board_dig_out_channels(i).custom_channel_name ');']);
+            eval(['data = single(' board_adc_channels(i).custom_channel_name ');']);
             fs = sample_rate;
             
             save(fname,'data','fs','gitInfo','-v7.3');
-            
         end
+
     end
-    
-    
 end
 
 % FOR NOW, LEAVE THESE UNSAVED (TYPICALLY UNUSED)
 
 % if (num_supply_voltage_channels > 0)
 %     block.info.supply_voltage_chans = supply_voltage_channels;
-% end
-
-% if (num_board_adc_channels > 0)
-%     block.info.adc = board_adc_channels;
 % end
 
 % if (num_temp_sensor_channels > 0)

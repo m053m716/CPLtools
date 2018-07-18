@@ -205,6 +205,8 @@ for iF = 1:N
         t = linspace(OFFSET,OFFSET+LEN,istop-istart+1);
         X = nan(N,numel(t));
     end
+    istart = min(istart, size(f.data,2)-fs*LEN);
+    istop = min(istop,size(f.data,2));
     X(iF,:) = f.data(1,istart:istop);
 end
 n_Probe = max(ch);
