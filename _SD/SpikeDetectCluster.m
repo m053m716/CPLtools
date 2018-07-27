@@ -19,7 +19,18 @@ function SpikeDetectCluster(varargin)
 %   per-channel data, a folder with the raw detected spikes, and a folder
 %   with the per-channel spikes split out by putative cluster (from SPC).
 %
-% By: Max Murphy    v3.3.0  08/14/2017  Added spike time as a feature for
+% By: Max Murphy    v4.1.1  01/25/2017  Added 'DO_AUTO_CLUSTERING'
+%                                       parameter in case user wants to
+%                                       only run spike detection and then
+%                                       do manual sorting using CRC.m
+%                                       later (possibly saves time).
+%                   v4.1.0  01/04/2017  Added SNEO to try and improve
+%                                       detection in high-noise recordings
+%                                       where many spikes are missed.
+%                   v4.0.0  12/13/2017  Adding adaptive thresholding to
+%                                       account for periods of high noise
+%                                       during long recordings.
+%                   v3.3.0  08/14/2017  Added spike time as a feature for
 %                                       SPC, allowing SPC to "track"
 %                                       clusters through time in order to
 %                                       assign good clusters. Increased
@@ -334,74 +345,80 @@ for iP = 1:nProbes % For each "probe index" ...
     clc;
 
 %% AUTOMATED CLUSTERING/SORTING
+   if pars.DO_AUTO_CLUSTERING
+       if pars.USE_CLUSTER
+           set(myJob,'Tag',['Clustering spikes for ' paths.N '...']);
+       else
+           disp('Beginning automated sorting...')
+       end
 
-    if pars.USE_CLUSTER
-        set(myJob,'Tag',['Clustering spikes for ' paths.N '...']);
-    else
-        disp('Beginning automated sorting...')
-    end
-    
-    if pars.USE_CLUSTER
-        parfor iCh = 1:nCh % For each "channel index" ...
-            % Perform SPC
-            cluster_exe = sprintf('cluster_%03d.exe',SiteLayout(iCh));
-            if exist(fullfile(pwd,cluster_exe),'file')~=0
-                delete(fullfile(pwd,cluster_exe));
-            end
-            
-            ts = find(spk{iCh,1}.peak_train);
-            features = [spk{iCh,1}.features, ...
-                        ts./max(ts)*pars.TSCALE]; %#ok<PFBNS>
-            
-            SPC_results = SpikeCluster_SPC(features,...
-                                       SiteLayout(iCh), ...
-                                       pars);
+       if pars.USE_CLUSTER
+           parfor iCh = 1:nCh % For each "channel index" ...
+               % Perform SPC
+               cluster_exe = sprintf('cluster_%03d.exe',SiteLayout(iCh));
+               if exist(fullfile(pwd,cluster_exe),'file')~=0
+                   delete(fullfile(pwd,cluster_exe));
+               end
 
-            fname = sprintf('P%d_Ch_%03d.mat',iP,SiteLayout(1,iCh)); %#ok<PFBNS>
-            newname = [paths.N pars.CLUS_DATA fname]; %#ok<PFBNS>
 
-            parsavedata(fullfile(paths.SL,paths.SF,newname), ...
-                'class',SPC_results.class,...
-                'clu',  SPC_results.clu,...
-                'tree', SPC_results.tree, ...
-                'pars', SPC_results.pars);
+               if pars.USE_TS_FEATURE %#ok<PFBNS>
+                  ts = find(spk{iCh,1}.peak_train);
+                  features = [spk{iCh,1}.features, ...
+                              ts./max(ts)*pars.TSCALE];
+               else
+                  features = spk{iCh,1}.features;
+               end
 
-            if exist(cluster_exe,'file')~=0
-                delete(cluster_exe);
-            end
-        end
-    else
-        for iCh = 1:nCh % For each "channel index" ...
-            % Perform SPC
-            cluster_exe = sprintf('cluster_%03d.exe',SiteLayout(iCh));
-            if exist(fullfile(pwd,cluster_exe),'file')~=0
-                delete(fullfile(pwd,cluster_exe));
-            end
+               SPC_results = SpikeCluster_SPC(features,...
+                                          SiteLayout(iCh), ...
+                                          pars);
 
-            SPC_results = SpikeCluster_SPC(spk{iCh,1}.features,...
-                                       SiteLayout(iCh), ...
-                                       pars);
+               fname = sprintf('P%d_Ch_%03d.mat',iP,SiteLayout(1,iCh)); %#ok<PFBNS>
+               newname = [paths.N pars.CLUS_DATA fname]; %#ok<PFBNS>
 
-            fname = sprintf('P%d_Ch_%03d.mat',iP,SiteLayout(1,iCh)); 
-            newname = [paths.N pars.CLUS_DATA fname]; 
+               parsavedata(fullfile(paths.SL,paths.SF,newname), ...
+                   'class',SPC_results.class,...
+                   'clu',  SPC_results.clu,...
+                   'tree', SPC_results.tree, ...
+                   'pars', SPC_results.pars);
 
-            parsavedata(fullfile(paths.SL,paths.SF,newname), ...
-                'class',SPC_results.class,...
-                'clu',  SPC_results.clu,...
-                'tree', SPC_results.tree, ...
-                'pars', SPC_results.pars);
+               if exist(cluster_exe,'file')~=0
+                   delete(cluster_exe);
+               end
+           end
+       else
+           for iCh = 1:nCh % For each "channel index" ...
+               % Perform SPC
+               cluster_exe = sprintf('cluster_%03d.exe',SiteLayout(iCh));
+               if exist(fullfile(pwd,cluster_exe),'file')~=0
+                   delete(fullfile(pwd,cluster_exe));
+               end
 
-            if exist(cluster_exe,'file')~=0
-                delete(cluster_exe);
-            end
-        end
-    end
+               SPC_results = SpikeCluster_SPC(spk{iCh,1}.features,...
+                                          SiteLayout(iCh), ...
+                                          pars);
 
-    % Delete any files that weren't properly removed
-    delete('*.param'); 
-    delete('*.mag');
-    delete('*.edges');
-    delete('*.run');
+               fname = sprintf('P%d_Ch_%03d.mat',iP,SiteLayout(1,iCh)); 
+               newname = [paths.N pars.CLUS_DATA fname]; 
+
+               parsavedata(fullfile(paths.SL,paths.SF,newname), ...
+                   'class',SPC_results.class,...
+                   'clu',  SPC_results.clu,...
+                   'tree', SPC_results.tree, ...
+                   'pars', SPC_results.pars);
+
+               if exist(cluster_exe,'file')~=0
+                   delete(cluster_exe);
+               end
+           end
+       end
+
+       % Delete any files that weren't properly removed
+       delete('*.param'); 
+       delete('*.mag');
+       delete('*.edges');
+       delete('*.run');
+   end
 
 end
 

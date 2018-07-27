@@ -18,8 +18,8 @@ for i = 1:p
         % Load from .wav file
         try
             % Old MATLAB versions
-            audio{i} = wavread(path,'double');
-        catch %#ok
+            audio{i} = wavread(path,'double'); %#ok<DWVRD>
+        catch 
             % New MATLAB versions
             audio{i} = audioread(path,'double');
         end

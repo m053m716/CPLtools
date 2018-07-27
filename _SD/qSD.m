@@ -7,22 +7,50 @@ function DIR = qSD(varargin)
 %    INPUTS
 %   --------
 %   varargin    :   (Optional) 'NAME', value input argument pairs, as
-%                   listed in DEFAULTS section.
+%                   listed in INIT_SD. Some more common options are listed
+%                   here.
 %
-%                   -> 'DIR'   :        Specifies location of raw data file
-%                                       directory within data block.
+%                   -> 'DIR'   :        (default - UI Selection)
+%                                       Specifies location of block. 
 %
-%                   -> 'USE_CAR'    :  (default: true) set to false to
-%                                       disable  the virtual common-average
-%                                       re-reference.
+%                   -> 'CLUSTER_LIST' : (default - {'CPLMJS2'; 'CPLMJS3'})
+%                                       Can add CPLMJS if you are sure
+%                                       nobody is using clusters, otherwise
+%                                       leave that one available in case
+%                                       extract needs to happen.
 %
-%                   -> 'TIC'        :  (default: doesn't exist) if
-%                                       specified, allows use of a "tic"
+%                   -> 'USE_CAR'    :   (default - true) 
+%                                       Set to false to disable  the 
+%                                       virtual common-average 
+%                                       re-reference. STRONGLY recommended
+%                                       to use this for recordings with 16+
+%                                       channels, but also STRONGLY
+%                                       recommend to disable for less than
+%                                       16 channels, as low channel counts
+%                                       can cause physiological spikes to
+%                                       be referred into non-spiking
+%                                       channels.
+%
+%                   -> 'USE_EXISTING_SPIKES' : (default - false)
+%                                              If spikes have already been
+%                                              detected, and you just want
+%                                              to do clustering on them.
+%                                
+%
+%                   -> 'DO_AUTO_CLUSTERING' : (default - true)
+%                                             Set false in order to skip
+%                                             the SPC segment, which saves
+%                                             time if you think that the
+%                                             auto-sort won't make manual
+%                                             curation/sorting any easier.
+%
+%                   -> 'TIC'        :  (default - NaN) 
+%                                       Specify to use a "tic"
 %                                       from prior to the start of function
 %                                       execution.
 %
-%                   -> 'STIM_TS'    :  (default: doesn't exist) if
-%                                       specified, give as a vector of time
+%                   -> 'STIM_TS'    :  (default - NaN)
+%                                       Specify as a vector of time
 %                                       stamps (seconds) relative to the
 %                                       start of the recordings. This will
 %                                       be used in conjunction with
@@ -31,8 +59,8 @@ function DIR = qSD(varargin)
 %                                       areas where there is known stimulus
 %                                       delivery.)
 %
-%                   -> 'ARTIFACT'   :  (default: doesn't exist) if
-%                                       specified, give as a 2xK matrix,
+%                   -> 'ARTIFACT'   :  (default - NaN) 
+%                                       Specify as a 2xK matrix,
 %                                       where K is the number of artifact
 %                                       periods you wish to "blank" from
 %                                       the data. Specify values as sample
@@ -42,12 +70,15 @@ function DIR = qSD(varargin)
 %                                       blanked epoch. Epochs do not need
 %                                       to be the same length.
 %
-%                   -> 'DELETE_OLD_PATH' : (default: false) if set true,
-%                                           will delete everything in the
-%                                           directory of old spike files
-%                                           using the same spike
+%                   -> 'DELETE_OLD_PATH' : (default - false) 
+%                                           Set true to delete everything 
+%                                           in the directory of old spike 
+%                                           files that use the same spike
 %                                           detection/clustering method as
-%                                           the current run.
+%                                           the current run. Optional for
+%                                           convenience if re-running
+%                                           detection with modified
+%                                           parameters.
 %
 %   --------
 %    OUTPUT
@@ -56,7 +87,11 @@ function DIR = qSD(varargin)
 %                   single-channel extractions for a single animal.
 %
 % See also: SPIKEDETECTCLUSTER, SPIKEDETECTIONARRAY, SPIKECLUSTER_SPC
-%   By: Max Murphy  v2.0.0  08/01/2017  Added STIM_TS blanking capability.
+%   By: Max Murphy  v2.0.1  01/25/2018  Updated documentation. Added option
+%                                       to DO_AUTO_CLUSTERING, which
+%                                       defaults to true, but can be set
+%                                       false to skip SPC.
+%                   v2.0.0  08/01/2017  Added STIM_TS blanking capability.
 %                                       Added ARTIFACT blanking capability.
 %                   v1.6.1  07/31/2017  Reduced available number of
 %                                       workers, since passing to more
@@ -112,6 +147,11 @@ USE_CAR  = true;
 % Default UI search paths for save and load:
 DEF_DIR = 'P:';
 
+% Other optional flags
+TIC = nan;
+STIM_TS = nan;
+ARTIFACT = nan;
+
 if exist(SD_PATH,'dir')==0
     SD_PATH(1) = 'T';
     LIBDIR(1) = 'T';
@@ -154,7 +194,7 @@ if exist('DIR','var')==0
 end
 IN_ARGS = [IN_ARGS, {'DIR', DIR}]; clear temp;
 
-fprintf(1,'\n\tDetecting spikes on channels in:\n\t%s', DIR);
+fprintf(1,'\n\tDetecting spikes on channels in:\n\t%s\n', DIR);
 IN_ARGS = [IN_ARGS, {'SAVE_LOC', DIR}];
 
 %% ADD SPIKEDETECTCLUSTER AND LIBRARY TO PATH
@@ -169,39 +209,39 @@ if exist([SD_PATH '\SpikeDetectCluster.m'], 'file')==0
     end
 end
 addpath(SD_PATH);
-addpath(LIBDIR);
-
-%% GET LIST OF FILES TO ADD TO JOB
-libs = what(LIBDIR);
-fprintf(1,'\n\tSearching for dependencies...');
-ATTACHEDFILES = ...
-    matlab.codetools.requiredFilesAndProducts('SpikeDetectCluster.m');
-ATTACHEDFILES = [ATTACHEDFILES, which('cluster.exe'), ...
-                                which('SpikeDetection_PTSD_core.cpp'), ...
-                                which('SpikeDetection_PTSD_core.mex')];
-fprintf(1,'complete.\n');          
-             
+addpath(LIBDIR);        
 
 %% SUBMIT JOB/TASK TO SERVER QUEUE
-if exist('TIC','var')==0
+if isnan(TIC)
     tStartJob = tic;
 else
     tStartJob = TIC;
 end
-fprintf(1,'\n\tCreating job...');
+
 Name = strsplit(DIR, filesep);
 Name = Name{end};
-if exist('CLUSTER','var')==0 % Otherwise, use "default" profile
-    fprintf(1,'Searching for Idle Workers...');
-    CLUSTER = findGoodCluster('CLUSTER_LIST',CLUSTER_LIST,...
-                              'NWR',NWR, ...
-                              'WAIT_TIME',WAIT_TIME, ...
-                              'INIT_TIME',INIT_TIME);
-    fprintf(1,'Beating them into submission...');
-end
 
 
 if USE_CLUSTER
+   libs = what(LIBDIR);
+   fprintf(1,'\n\tSearching for dependencies...');
+   ATTACHEDFILES = ...
+       matlab.codetools.requiredFilesAndProducts('SpikeDetectCluster.m');
+   ATTACHEDFILES = [ATTACHEDFILES, which('cluster.exe'), ...
+                                   which('SpikeDetection_PTSD_core.cpp'), ...
+                                   which('SpikeDetection_PTSD_core.mex')];
+   fprintf(1,'complete.\n');   
+   
+   fprintf(1,'\n\tCreating job...');
+   if exist('CLUSTER','var')==0 % Otherwise, use "default" profile
+       fprintf(1,'Searching for Idle Workers...');
+       CLUSTER = findGoodCluster('CLUSTER_LIST',CLUSTER_LIST,...
+                                 'NWR',NWR, ...
+                                 'WAIT_TIME',WAIT_TIME, ...
+                                 'INIT_TIME',INIT_TIME);
+       fprintf(1,'Beating them into submission...');
+   end
+
     myCluster = parcluster(CLUSTER);
     myJob     = createCommunicatingJob(myCluster, ...
              'AttachedFiles', ATTACHEDFILES, ...

@@ -139,10 +139,15 @@ switch pars.PKDETECT
         
     case 'pos'
 
-        pars.thresh = pars.FIXED_THRESH;
-
         [p2pamp,ts,pw,pp] = Threshold_Detection(data_ART,pars,1);
         
+   case 'adapt' % Use findpeaks in conjunction w/ adaptive thresh -12/13/17
+        pars.thresh = pars.MULTCOEFF;
+        [p2pamp,ts,pw,pp] = Adaptive_Threshold(data_ART,pars);
+        
+   case 'sneo' % Use findpeaks in conjunction w/ SNEO - 1/4/17
+        pars.thresh = pars.MULTCOEFF;
+        [p2pamp,ts,pw,pp,E] = SNEO_Threshold(data_ART,pars);
     otherwise
         error('Invalid PKDETECT specification.');
 end
@@ -152,6 +157,9 @@ if any(artifact)
     p2pamp=p2pamp(ia);
     pw = pw(ia);
     pp = pp(ia);
+    if exist('E','var')~=0
+       E = E(ia);
+    end
 end         
 
 %% EXCLUDE SPIKES THAT WOULD GO OUTSIDE THE RECORD
@@ -160,12 +168,14 @@ p2pamp(out_of_record) = [];
 pw(out_of_record) = [];
 pp(out_of_record) = [];
 ts(out_of_record) = [];
+if exist('E','var')~=0
+   E(out_of_record) = [];
+end
 
 %% BUILD SPIKE SNIPPET ARRAY AND PEAK_TRAIN
 if (any(ts)) % If there are spikes in the current signal
 
     [peak_train,spikes] = Build_Spike_Array(data,ts,p2pamp,pars);
-      clear p2pamp ts
       
     %No interpolation in this case
     if length(spikes) > 1
@@ -173,21 +183,44 @@ if (any(ts)) % If there are spikes in the current signal
         spikes(:,end-1:end)=[];       
         spikes(:,1:2)=[];
     end
+    
+    % Extract spike features
+    if size(spikes,1) > pars.MIN_SPK % Need minimum number of spikes
+       features = wave_features(spikes,pars);    
+       features = features./std(features);
+       if ~any(isnan(p2pamp))
+          tmp = (reshape(p2pamp,size(features,1),1)./max(p2pamp)-0.5)*3.0;
+          features = [features, tmp];
+       end
+       if ~any(isnan(pp))
+          tmp = (reshape(pp,size(features,1),1)./max(pp)-0.5)*3.0;
+          features = [features, tmp];
+       end
+       if ~any(isnan(pw))
+          tmp = (reshape(pw,size(features,1),1)./max(pw)-0.5)*3.0;
+          features = [features, tmp];
+       end
+       if exist('E','var')~=0
+          tmp = (reshape(E,size(features,1),1)./max(E)-0.5)*3.0;
+          features = [features, tmp];
+       end
+    else
+       % Just make features reflect poor quality of (small) cluster
+       features = randn(size(spikes,1),pars.NINPUT) * 10; 
+    end
+    
 else % If there are no spikes in the current signal
-    peak_train = sparse(double(npoints) + double(pars.w_post), double(1));
+    peak_train = sparse(double(pars.npoints) + double(pars.w_post), double(1));
     spikes = [];
+    features = [];
 end
-
-%% EXTRACT SPIKE FEATURES
-features = wave_features(spikes,pars);    
-features = features./std(features);
 
 %% ASSIGN OUTPUT
 spikedata.peak_train = peak_train;      % Spike (neg.) peak times
 spikedata.artifact = artifact;          % Artifact times
 spikedata.spikes = spikes;              % Spike snippets
 spikedata.features = features;          % Wavelet features
-spikedata.pp = pp;                      % Prominence
-spikedata.pw = pw;                      % Width
+spikedata.pp = pp;                      % Prominence (peak min. for 'adapt')
+spikedata.pw = pw;                      % Width (peak max. for 'adapt')
 
 end

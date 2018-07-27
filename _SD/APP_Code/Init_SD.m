@@ -7,7 +7,7 @@ function pars = Init_SD(varargin)
 
 %% DEFAULTS
 % General settings
-VERSION  = 'v3.3.0';     % Version, to be passed with parameters
+VERSION  = 'v4.0.0';     % Version, to be passed with parameters
 LIBDIR   = 'C:\MyRepos\_SD\APP_Code';% Location of associated sub-functions
 DEF_DIR  = 'P:\';        % Default location to look for extracted data file
 ED_ID = '\*P*Ch*.mat';    % Extracted data identifier (for input)
@@ -28,6 +28,7 @@ SPIKE_DATA  = '_ptrain_';           % Spikes file ID
 CLUS_DATA   = '_clus_';             % Clusters file ID
 DELETE_OLD_PATH = false;            % Remove old files
 USE_EXISTING_SPIKES = false;        % Use existing spikes on directory
+DO_AUTO_CLUSTERING = true;          % If false, skips "clustering" portion
 
 % % Isilon cluster settings
 USE_CLUSTER = true;      % Must pre-detect clusters on machine and run 
@@ -42,19 +43,23 @@ CHANS =  {'Wave',1:32,'P1'; ...  % Match the format for each probe that was used
 % Spike detection settings
 
     % Parameters                     
-    ARTIFACT_THRESH = 350;  % Threshold for artifact
-    STIM_TS  = [];          % Pre-specified stim times
-    ARTIFACT = [];          % Pre-specified artifact times
-    PRE_STIM_BLANKING  = 2; % Window to blank before specifieid stim times (ms)
-    POST_STIM_BLANKING = 4; % Window to blank after specified stim times (ms)
+    ARTIFACT_THRESH = 450;    % Threshold for artifact
+    STIM_TS  = [];            % Pre-specified stim times
+    ARTIFACT = [];            % Pre-specified artifact times
+    PRE_STIM_BLANKING  = 0.5; % Window to blank before specifieid stim times (ms)
+    POST_STIM_BLANKING = 1.5; % Window to blank after specified stim times (ms)
     ARTIFACT_SPACE  = 4;    % Window to ignore around artifact (suggest: 4 ms MIN for stim rebound)
-    MULTCOEFF       = 4;    % Multiplication coefficient for noise
-    PKDURATION      = 1.6;  % Pulse lifetime period (suggest: 2 ms MAX)
+    MULTCOEFF       = 4.5;  % Multiplication coefficient for noise
+    PKDURATION      = 1.0;  % Pulse lifetime period (suggest: 2 ms MAX)
     REFRTIME        = 2.0;  % Refractory period (suggest: 2 ms MAX).
-    PKDETECT        = 'neg';% 'both' or 'pos' or 'neg' for peak type
+    PKDETECT        = 'sneo';% 'both' or 'pos' or 'neg' or 'adapt' or 'sneo' for peak type
+    ADPT_N          = 60;   % Number of ms to use for adaptive filter
+    SNEO_N          = 5;    % Number of samples to use for smoothed nonlinear energy operator window
+    NS_AROUND       = 7;    % Number of samples around the peak to "look" for negative peak
+    ADPT_MIN        = 15;   % Minimum for adaptive threshold (fixed)
     ALIGNFLAG       = 1;    % Alignment flag for detection
                             % [0 -> highest / 1 -> most negative]
-    P2PAMP          = 90;   % Minimum peak-to-peak amplitude
+    P2PAMP          = 60;   % Minimum peak-to-peak amplitude
     W_PRE           = 0.4;  % Pre-spike window  (ms)
     W_POST          = 0.8;  % Post-spike window (ms)
     ART_DIST        = 1/35; % Max. time between stimuli (sec)
@@ -63,33 +68,23 @@ CHANS =  {'Wave',1:32,'P1'; ...  % Match the format for each probe that was used
     INIT_THRESH     = 50;       % Pre-adaptive spike threshold (micro-volts)
     PRESCALED       = true;     % Whether data has been pre-scaled to micro-volts.
     FIXED_THRESH    = 50;       % If alignment is 'neg' or 'pos' this can be set to fix the detection threshold level
+    ART_RATE        = 0.0035;   % Empirically determined rate for artifacts based on artifact rejection
+    M               = (-7/3);   % See ART_RATE
+    B               = 1.05;     % See ART_RATE
     
-% Spike clustering settings
+% Spike features and sorting settings (SPC pars in SPIKECLUSTER_SPC)
 SC_VER = 'SPC';   % Version of spike clustering 
                          
     % Parameters
-    NCLUS_MAX = 5;          % Max. # of SPC clusters (including 'OUT')
-    N_INTERP_SAMPLES = 100; % Number of interpolated samples for spikes
-    MAX_SPK  = 2000;     % Max. spikes before template matching for a cluster
-    MIN_SPK  = 10;       % Minimum spikes before sorting
-    TEMPLATE = 'center'; % Cluster matching algorithm: 'center', 'nn', 'ml', 'mahal
+    N_INTERP_SAMPLES = 250; % Number of interpolated samples for spikes
+    MIN_SPK  = 100;       % Minimum spikes before sorting
     TEMPSD   = 3.5;      % Cluster template max radius for template matching
     TSCALE   = 3.5;      % Scaling for timestamps of spikes as a feature
-    PERMUT   = 'n';      % For selection of first 'MAX_SPK' before starting template match
-    FEAT     = 'wav';    % 'wav' or 'pca' or 'ica' for spike features
+    USE_TS_FEATURE = false; % Add timestamp as an additional feature for SPC?
+    FEAT     = 'ica';    % 'wav' or 'pca' or 'ica' for spike features
     WAVELET  = 'bior1.3';% 'haar' 'bior1.3' 'db4' 'sym8' all examples
-    NINPUT   = 7;        % Number of feature inputs for clustering
+    NINPUT   = 6;        % Number of feature inputs for clustering
     NSCALES  = 3;        % Number of scales for wavelet decomposition
-    MINTEMP  = 0.000;    % Minimum SPC temperature
-    MAXTEMP  = 0.201;    % Maximum SPC temperature
-    TSTEP    = 0.001;    % Temperature step
-    STAB     = 0.95;     % Stability criterion for selecting an SPC temperature
-    SWCYC    = 300;      % Number of montecarlo iterations
-    ABS_KNN  = 15;       % Absolute number of KNN (min.)
-    REL_KNN  = 0.0001;   % Relative number of KNN
-    NMINCLUS = 7;        % Absolute # for minimum cluster size
-    RMINCLUS = 0.005;    % Relative minimum cluster size to total # spikes
-    RANDOMSEED = 147;    % Random seed for SPC seeding
     
 %% PARSE VARARGIN
 if numel(varargin)==1
@@ -106,12 +101,18 @@ end
 if exist('SD_VER','var')==0
     % Version of spike detection
     switch PKDETECT
-        case 'neg'
-            SD_VER = [FEAT '-neg' num2str(FIXED_THRESH)];    
-        case 'pos'
-            SD_VER = [FEAT '-pos' num2str(FIXED_THRESH)];
-        case 'both'
-            SD_VER = [FEAT '-PT'];            
+       case 'neg'
+         SD_VER = [FEAT '-neg' num2str(FIXED_THRESH)];    
+       case 'pos'
+         SD_VER = [FEAT '-pos' num2str(FIXED_THRESH)];
+       case 'adapt'
+         SD_VER = [FEAT '-adapt'];
+       case 'both'
+         SD_VER = [FEAT '-PT'];  
+       case 'sneo'
+         SD_VER = [FEAT '-sneo'];
+       otherwise
+         SD_VER = [FEAT '-new'];
     end
 end
 
@@ -128,6 +129,7 @@ pars = struct;
     pars.DEF_DIR = DEF_DIR;
     pars.DELETE_OLD_PATH = DELETE_OLD_PATH;
     pars.USE_EXISTING_SPIKES = USE_EXISTING_SPIKES;
+    pars.DO_AUTO_CLUSTERING = DO_AUTO_CLUSTERING;
     
     %Detection properties
     pars.ARTIFACT_THRESH = ARTIFACT_THRESH;
@@ -150,29 +152,22 @@ pars = struct;
     pars.PRESCALED = PRESCALED;
     pars.PKDETECT = PKDETECT;
     pars.FIXED_THRESH = FIXED_THRESH;
+    pars.ADPT_N = ADPT_N;
+    pars.SNEO_N = SNEO_N;
+    pars.NS_AROUND = NS_AROUND;
+    pars.ADPT_MIN = ADPT_MIN;
+    pars.ART_RATE = ART_RATE;
+    pars.M = M;
+    pars.B = B;
     
     %Clustering properties
     pars.N_INTERP_SAMPLES = N_INTERP_SAMPLES;
-    pars.MAX_SPK = MAX_SPK;
     pars.MIN_SPK = MIN_SPK;
-    pars.TEMPLATE = TEMPLATE;
-    pars.TEMPSD = TEMPSD;
-    pars.PERMUT = PERMUT;
     pars.FEAT = FEAT;
     pars.NINPUT = NINPUT;
     pars.NSCALES = NSCALES;
-    pars.MINTEMP = MINTEMP;
-    pars.MAXTEMP = MAXTEMP;
-    pars.TSTEP = TSTEP;
-    pars.STAB = STAB;
-    pars.SWCYC = SWCYC;
-    pars.ABS_KNN = ABS_KNN;
-    pars.REL_KNN = REL_KNN;
-    pars.NMINCLUS = NMINCLUS;
-    pars.RMINCLUS = RMINCLUS;
-    pars.NCLUS_MAX = NCLUS_MAX;
-    pars.RANDOMSEED = RANDOMSEED;
     pars.TSCALE = TSCALE;
+    pars.USE_TS_FEATURE = USE_TS_FEATURE;
     
     %General things about this run
     pars.CHANS = CHANS;
