@@ -49,7 +49,7 @@ if any(segm)
          for in = 1:length(segm) 
 %               art_idx = [art_idx ,rm_pre(in):segm(in)];
 %               art_idx = [art_idx ,segm(in):rm_post(in)];
-             art_idx = [art_idx ,rm_pre(in):rm_post(in)];
+             art_idx = [art_idx ,rm_pre(in):rm_post(in)]; %#ok<AGROW>
          end 
 %          art_idx = unique([segm,art_idx]');
     end

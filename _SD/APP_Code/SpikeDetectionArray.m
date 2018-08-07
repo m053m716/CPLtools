@@ -90,77 +90,83 @@ pars.RP          =   double(floor(pars.REFRTIME*1e-3*pars.FS));         % Refrac
 pars.nc_artifact =   double(floor(pars.ARTIFACT_SPACE*1e-3*pars.FS));   % PLP [samples]
 pars.npoints     =   double(numel(data));                               % Sample length of record
 if pars.PRESCALED
-    pars.th_artifact = pars.ARTIFACT_THRESH;
+   pars.th_artifact = pars.ARTIFACT_THRESH;
 else
-    pars.th_artifact = pars.ARTIFACT_THRESH * 1e-6;
+   pars.th_artifact = pars.ARTIFACT_THRESH * 1e-6;
 end
 
 %% REMOVE ARTIFACT
 if ~isempty(pars.STIM_TS)
-    data_ART = Remove_Stim_Periods(data,pars);
+   data_ART = Remove_Stim_Periods(data,pars);
 else
-    data_ART = data;
+   data_ART = data;
 end
 
 if ~isempty(pars.ARTIFACT)
-    data_ART = Remove_Artifact_Periods(data_ART,pars);
+   [data_ART,art_idx] = Remove_Artifact_Periods(data_ART,pars.ARTIFACT);
+else
+   art_idx = [];
 end
 [data_ART,artifact] = Hard_Artifact_Rejection(data_ART,pars);
-                                         
+
 %% COMPUTE SPIKE THRESHOLD AND DO DETECTION
-% SpikeDetection_PTSD_core.cpp; 
+% SpikeDetection_PTSD_core.cpp;
 if mod(pars.PLP,2)>0
-    pars.PLP = pars.PLP + 1; % PLP must be even or doesn't work...
+   pars.PLP = pars.PLP + 1; % PLP must be even or doesn't work...
 end
 data_ART = double(data_ART);
 
 switch pars.PKDETECT
-    case 'both' % (old, probably not using any more -MM 8/3/2017)
-        pars.thresh = PreciseTiming_Threshold(data_ART,pars);
-        [spkValues, spkTimeStamps] = SpikeDetection_PTSD_core(data_ART, ...
-                                                          pars.thresh, ...
-                                                          pars.PLP, ...
-                                                          pars.RP, ...
-                                                          pars.ALIGNFLAG);
-                                                      
-        % +1 added to accomodate for zero- (c) or one-based (matlab) array indexing                                                  
-        ts  = 1 + spkTimeStamps( spkTimeStamps > 0); 
-        p2pamp = spkValues( spkTimeStamps > 0);
-        pw = nan(size(p2pamp));
-        pp = nan(size(p2pamp));
-        
-        clear spkValues spkTimeStamps;
-
-    case 'neg' % (probably use this in future -MM 8/3/2017)
-
-        pars.thresh = pars.FIXED_THRESH;
-
-        [p2pamp,ts,pw,pp] = Threshold_Detection(data_ART,pars,-1);
-        
-    case 'pos'
-
-        [p2pamp,ts,pw,pp] = Threshold_Detection(data_ART,pars,1);
-        
+   case 'both' % (old, probably not using any more -MM 8/3/2017)
+      tmpdata = data_ART;
+      tmpdata(art_idx) = [];
+      pars.thresh = PreciseTiming_Threshold(tmpdata,pars);
+      [spkValues, spkTimeStamps] = SpikeDetection_PTSD_core(data_ART, ...
+         pars.thresh, ...
+         pars.PLP, ...
+         pars.RP, ...
+         pars.ALIGNFLAG);
+      
+      % +1 added to accomodate for zero- (c) or one-based (matlab) array indexing
+      ts  = 1 + spkTimeStamps( spkTimeStamps > 0);
+      p2pamp = spkValues( spkTimeStamps > 0);
+      pw = nan(size(p2pamp));
+      pp = nan(size(p2pamp));
+      
+      clear spkValues spkTimeStamps;
+      
+   case 'neg' % (probably use this in future -MM 8/3/2017)
+      
+      pars.thresh = pars.FIXED_THRESH;
+      
+      [p2pamp,ts,pw,pp] = Threshold_Detection(data_ART,pars,-1);
+      
+   case 'pos'
+      
+      pars.thresh = pars.FIXED_THRESH;
+      
+      [p2pamp,ts,pw,pp] = Threshold_Detection(data_ART,pars,1);
+      
    case 'adapt' % Use findpeaks in conjunction w/ adaptive thresh -12/13/17
-        pars.thresh = pars.MULTCOEFF;
-        [p2pamp,ts,pw,pp] = Adaptive_Threshold(data_ART,pars);
-        
+      pars.thresh = pars.MULTCOEFF;
+      [p2pamp,ts,pw,pp] = Adaptive_Threshold(data_ART,pars);
+      
    case 'sneo' % Use findpeaks in conjunction w/ SNEO - 1/4/17
-        pars.thresh = pars.MULTCOEFF;
-        [p2pamp,ts,pw,pp,E] = SNEO_Threshold(data_ART,pars);
-    otherwise
-        error('Invalid PKDETECT specification.');
+      pars.thresh = pars.MULTCOEFF;
+      [p2pamp,ts,pw,pp,E] = SNEO_Threshold(data_ART,pars,art_idx);
+   otherwise
+      error('Invalid PKDETECT specification.');
 end
 %% ENSURE NO SPIKES REMAIN FROM ARTIFACT PERIODS
 if any(artifact)
-    [ts,ia]=setdiff(ts,artifact);
-    p2pamp=p2pamp(ia);
-    pw = pw(ia);
-    pp = pp(ia);
-    if exist('E','var')~=0
-       E = E(ia);
-    end
-end         
+   [ts,ia]=setdiff(ts,artifact);
+   p2pamp=p2pamp(ia);
+   pw = pw(ia);
+   pp = pp(ia);
+   if exist('E','var')~=0
+      E = E(ia);
+   end
+end
 
 %% EXCLUDE SPIKES THAT WOULD GO OUTSIDE THE RECORD
 out_of_record = ts <= pars.w_pre+1 | ts >= pars.npoints-pars.w_post-2;
@@ -174,45 +180,45 @@ end
 
 %% BUILD SPIKE SNIPPET ARRAY AND PEAK_TRAIN
 if (any(ts)) % If there are spikes in the current signal
-
-    [peak_train,spikes] = Build_Spike_Array(data,ts,p2pamp,pars);
-      
-    %No interpolation in this case
-    if length(spikes) > 1
-        %eliminates borders that were introduced for interpolation
-        spikes(:,end-1:end)=[];       
-        spikes(:,1:2)=[];
-    end
-    
-    % Extract spike features
-    if size(spikes,1) > pars.MIN_SPK % Need minimum number of spikes
-       features = wave_features(spikes,pars);    
-       features = features./std(features);
-       if ~any(isnan(p2pamp))
-          tmp = (reshape(p2pamp,size(features,1),1)./max(p2pamp)-0.5)*3.0;
-          features = [features, tmp];
-       end
-       if ~any(isnan(pp))
-          tmp = (reshape(pp,size(features,1),1)./max(pp)-0.5)*3.0;
-          features = [features, tmp];
-       end
-       if ~any(isnan(pw))
-          tmp = (reshape(pw,size(features,1),1)./max(pw)-0.5)*3.0;
-          features = [features, tmp];
-       end
-       if exist('E','var')~=0
-          tmp = (reshape(E,size(features,1),1)./max(E)-0.5)*3.0;
-          features = [features, tmp];
-       end
-    else
-       % Just make features reflect poor quality of (small) cluster
-       features = randn(size(spikes,1),pars.NINPUT) * 10; 
-    end
-    
+   
+   [peak_train,spikes] = Build_Spike_Array(data,ts,p2pamp,pars);
+   
+   %No interpolation in this case
+   if length(spikes) > 1
+      %eliminates borders that were introduced for interpolation
+      spikes(:,end-1:end)=[];
+      spikes(:,1:2)=[];
+   end
+   
+   % Extract spike features
+   if size(spikes,1) > pars.MIN_SPK % Need minimum number of spikes
+      features = wave_features(spikes,pars);
+      features = features./std(features);
+      if ~any(isnan(p2pamp))
+         tmp = (reshape(p2pamp,size(features,1),1)./max(p2pamp)-0.5)*3.0;
+         features = [features, tmp];
+      end
+      if ~any(isnan(pp))
+         tmp = (reshape(pp,size(features,1),1)./max(pp)-0.5)*3.0;
+         features = [features, tmp];
+      end
+      if ~any(isnan(pw))
+         tmp = (reshape(pw,size(features,1),1)./max(pw)-0.5)*3.0;
+         features = [features, tmp];
+      end
+      if exist('E','var')~=0
+         tmp = (reshape(E,size(features,1),1)./max(E)-0.5)*3.0;
+         features = [features, tmp];
+      end
+   else
+      % Just make features reflect poor quality of (small) cluster
+      features = randn(size(spikes,1),pars.NINPUT) * 10;
+   end
+   
 else % If there are no spikes in the current signal
-    peak_train = sparse(double(pars.npoints) + double(pars.w_post), double(1));
-    spikes = [];
-    features = [];
+   peak_train = sparse(double(pars.npoints) + double(pars.w_post), double(1));
+   spikes = [];
+   features = [];
 end
 
 %% ASSIGN OUTPUT

@@ -1,7 +1,7 @@
 function [p2pamp,ts,pmin,dt] = Adaptive_Threshold(data,pars)
 %% ADAPTIVE_THRESHOLD   Set adaptive threshold based on local noise
 %
-%  [pwpamp,ts,pmin,dt] = ADAPTIVE_THRESHOLD(data,pars)
+%  [pwpamp,ts,pmin,dt] = ADAPTIVE_THRESHOLD(data,pars,art_idx)
 %
 %   --------
 %    INPUTS
@@ -14,8 +14,6 @@ function [p2pamp,ts,pmin,dt] = Adaptive_Threshold(data,pars)
 %                       the following fields:
 %
 %       -> ADPT_N \\ Number of samples in local noise detection filter
-%
-%       -> 
 %
 %   --------
 %    OUTPUT

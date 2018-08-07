@@ -1,7 +1,7 @@
-function [byUnit,byTrial,tVec] = CPL_alignspikes(X,idx,varargin)
+function [byChannel,byTrial,tVec] = CPL_alignspikes(X,idx,varargin)
 %% CPL_ALIGNSPIKES   Align spikes from array X using external alignment t
 %
-%    aligned = CPL_alignspikes(X,idx,'NAME',value,...);
+%    [byChannel,byTrial,tVec] = CPL_alignspikes(X,idx,'NAME',value,...);
 %
 %  --------
 %   INPUTS
@@ -20,16 +20,16 @@ function [byUnit,byTrial,tVec] = CPL_alignspikes(X,idx,varargin)
 %  --------
 %   OUTPUT
 %  --------
-%   byUnit  :     Cell array where each array element contains a cell array
+%   byChannel  :  Cell array where each array element contains a cell array
 %                 of spike times representing a single unit on multiple
 %                 trials.
 %
-%   byTrial :     Cell array in which each array element contains a cell
+%   byTrial    :  Cell array in which each array element contains a cell
 %                 array of spike times with each array element
 %                 corresponding to the spike times of a given unit on a
 %                 specific trial.
 %
-%     tVec  :     Bin centers (seconds) for each column of binned counts.
+%     tVec     :  Bin centers (seconds) for each column of binned counts.
 %
 % By: Max Murphy  v1.0  03/12/2018  Original version (R2017b)
 
@@ -37,8 +37,8 @@ function [byUnit,byTrial,tVec] = CPL_alignspikes(X,idx,varargin)
 EXT      =   nan;    % External times, to sync to each alignment time
 FS       = 30000;    % Sampling rate of record
 
-E_PRE    = 1.000; 	% Epoch "pre" alignment (seconds)
-E_POST   = 0.500;    % Epoch "post" alignment (seconds)
+E_PRE    = 2.000; 	% Epoch "pre" alignment (seconds)
+E_POST   = 1.000;    % Epoch "post" alignment (seconds)
 BINSIZE  = 0.025;    % Width of bins (seconds)
 
 CLIP_BINS =false;    % Set true to clip bin counts to 1.
@@ -49,6 +49,10 @@ OUT_MODE  = 'ts';    % Can be 'ts' or 'bins'
 IDX_TYPE  = 'ts';    % Can be 'ts' or 'index'
                      % -> 'ts' (def) : alignments are times (seconds)
                      % -> 'index'    : alignments are 1-indexed integers
+                     
+IN_MODE = 'ts';      % Can be 'ts' or 'bins'
+                     % -> 'ts' (def) : return cell arrays of spike times
+                     % -> 'bin'      : return binned matrices
 
 %% PARSE VARARGIN
 for iV = 1:2:numel(varargin)
@@ -73,8 +77,13 @@ for iX = 1:nUnit
       x = find(X{iX})./FS;
       X{iX} = reshape(x,1,numel(x));
    else
-      x = X{iX}./FS;
-      X{iX} = reshape(x,1,numel(x));
+      if strcmpi(IN_MODE,'index')
+         x = X{iX}./FS;
+         X{iX} = reshape(x,1,numel(x));
+      else
+         x = X{iX};
+         X{iX} = reshape(x,1,numel(x)); % Make sure orientation is good
+      end
    end
 end
 
@@ -83,26 +92,26 @@ if strcmpi(IDX_TYPE,'index') || strcmpi(IDX_TYPE,'idx')
 end
 
 %% GET ALIGNMENT BY UNIT
-byUnit = cell(nUnit,1);
+byChannel = cell(nUnit,1);
 for iUnit = 1:nUnit
    if strcmpi(OUT_MODE,'bin')
       clip_ok = true;
-      byUnit{iUnit} = zeros(nTrial,T);
+      byChannel{iUnit} = zeros(nTrial,T);
       for iTrial = 1:nTrial
-         byUnit{iUnit}(iTrial,:) = histcounts(X{iUnit}-idx(iTrial),binVec);
+         byChannel{iUnit}(iTrial,:) = histcounts(X{iUnit}-idx(iTrial),binVec);
       end
    else
       clip_ok = false;
-      byUnit{iUnit} = cell(nTrial,1);
+      byChannel{iUnit} = cell(nTrial,1);
       for iTrial = 1:nTrial
          x = X{iUnit}-idx(iTrial);
-         byUnit{iUnit}{iTrial} = x(x>=(-E_PRE) & x<= E_POST);
+         byChannel{iUnit}{iTrial} = x(x>=(-E_PRE) & x<= E_POST);
       end
    end
 end
 
 if CLIP_BINS && clip_ok
-   byUnit = CPL_clipbins(byUnit);
+   byChannel = CPL_clipbins(byChannel);
 end
 
 %% GET ALIGNMENT ORGANIZED BY TRIAL

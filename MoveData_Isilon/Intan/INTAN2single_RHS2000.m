@@ -681,7 +681,7 @@ if (num_board_adc_channels > 0)
     save(infoname,'info','gitInfo','-v7.3');
     if (data_present)
         for i = 1:num_board_adc_channels
-            paths.DW_N = strrep(paths.AW_N, '\', '/');
+            paths.AW_N = strrep(paths.AW_N, '\', '/');
             fname = sprintf(paths.AW_N, board_adc_channels(i).custom_channel_name); 
             data = single(board_adc_data(i,:));           
             save(fname,'data','fs','gitInfo','-v7.3');            
@@ -697,7 +697,7 @@ if (num_board_dac_channels > 0)
     save(infoname,'info','gitInfo','-v7.3');
     if (data_present)
         for i = 1:num_board_dac_channels
-            paths.DW_N = strrep(paths.AW_N, '\', '/');
+            paths.AW_N = strrep(paths.AW_N, '\', '/');
             fname = sprintf(paths.AW_N, board_dac_channels(i).custom_channel_name); 
             data = single(board_dac_data(i,:));           
             save(fname,'data','fs','gitInfo','-v7.3');            

@@ -23,6 +23,10 @@ for ii = 1:numel(block)
       continue;
    end
    
+   
+   % This part just tries to remove epochs that are not around behavior of
+   % interest; this way spike detection and more importantly CLUSTERING is
+   % only done on the spikes of interest:
    ts = sort([grasp.s, grasp.f],'ascend');
    
    ts((ts - E_PRE) <= 0) = [];
@@ -31,11 +35,16 @@ for ii = 1:numel(block)
    
    t_art = [1; ts(1)-E_PRE];
    for iT = 2:numel(ts)
-      t_art = [t_art, (ts(iT-1)+E_POST); (ts(iT)-E_PRE)]; %#ok<AGROW>
+      t_add = [(ts(iT-1)+E_POST); (ts(iT)-E_PRE)];
+      t_art = [t_art, t_add]; %#ok<AGROW>
    end
+   t_add = [(ts(end)+E_POST); tFinal];
+   t_art = [t_art, t_add]; %#ok<AGROW>
    
-   t_art = [t_art, (ts(end)+E_POST); tFinal]; %#ok<AGROW>
+   t_art = round(t_art * FS);
    
-   qSD('DIR',b,'ARTIFACT',t_art,'TIC',TIC);
+   % And submit the job for spike detection:
+   qSD('DIR',b,'ARTIFACT',t_art,'TIC',TIC,'DELETE_OLD_PATH',true);
    
 end
+toc;

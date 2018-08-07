@@ -1,7 +1,7 @@
-function [p2pamp,ts,pmin,dt,E] = SNEO_Threshold(data,pars)
+function [p2pamp,ts,pmin,dt,E] = SNEO_Threshold(data,pars,art_idx)
 %% SNEO_THRESHOLD   Smoothed nonlinear energy operator thresholding detect
 %
-%  [p2pamp,ts,pmin,dt,E] = SNEO_THRESHOLD(data,pars)
+%  [p2pamp,ts,pmin,dt,E] = SNEO_THRESHOLD(data,pars,art_idx)
 %
 %   --------
 %    INPUTS
@@ -15,6 +15,10 @@ function [p2pamp,ts,pmin,dt,E] = SNEO_Threshold(data,pars)
 %
 %       -> SNEO_N    \\ number of samples for smoothing window
 %       -> MULTCOEFF \\ factor to multiply NEO noise threshold by
+%
+%    art_idx   :        Indexing vector for artifact rejection periods,
+%                       which are temporarily removed so that thresholds
+%                       are not underestimated.
 %
 %   --------
 %    OUTPUT
@@ -40,8 +44,13 @@ Z = [0, Y(2:(end-1)).^2 - Yb .* Yf, 0]; % Discrete nonlinear energy operator
 Zs = fastsmooth(Z,pars.SNEO_N);
 
 %% CREATE THRESHOLD FILTER
-th = pars.MULTCOEFF * median(abs(Zs));
-data_th = pars.MULTCOEFF * median(abs(data));
+tmpdata = data;
+tmpdata(art_idx) = [];
+tmpZ = Zs;
+tmpZ(art_idx) = [];
+
+th = pars.MULTCOEFF * median(abs(tmpZ));
+data_th = pars.MULTCOEFF * median(abs(tmpdata));
 
 %% PERFORM THRESHOLDING
 pk = Zs > th;

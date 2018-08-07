@@ -81,9 +81,9 @@ SC_VER = 'SPC';   % Version of spike clustering
     TEMPSD   = 3.5;      % Cluster template max radius for template matching
     TSCALE   = 3.5;      % Scaling for timestamps of spikes as a feature
     USE_TS_FEATURE = false; % Add timestamp as an additional feature for SPC?
-    FEAT     = 'ica';    % 'wav' or 'pca' or 'ica' for spike features
+    FEAT     = 'wav';    % 'wav' or 'pca' or 'ica' for spike features
     WAVELET  = 'bior1.3';% 'haar' 'bior1.3' 'db4' 'sym8' all examples
-    NINPUT   = 6;        % Number of feature inputs for clustering
+    NINPUT   = 12;       % Number of feature inputs for clustering
     NSCALES  = 3;        % Number of scales for wavelet decomposition
     
 %% PARSE VARARGIN
