@@ -40,6 +40,7 @@ ANIMALTYPE = 'Rat';         % Could also be Monkey
 DATATYPE = 'TDT';           % Acquisition system (leave as TDT)
 
 % For finding clusters
+TIC = tic;
 CLUSTER_LIST = {'CPLMJS'}; % MJS cluster profiles
 NWR          = [1 1];     % Number of workers to use
 WAIT_TIME    = 15;        % Wait time for looping if using findGoodCluster
@@ -60,16 +61,23 @@ end
 %% GET BLOCK TO READ
 if exist('DIR','var')==0
     DIR = uigetdir(DEFDIR,'Select block');
+    skip_ask_flag = false;
 else
     if exist(DIR,'dir')==0
         error(['Invalid directory: ' DIR]);
     end
+    skip_ask_flag = true;
 end
 
 %% FOR SELECTING MULTIPLE FOLDERS TO PROCESS
-[AnyMore,~] = listdlg('PromptString','Select Additional Directories?',...
+if ~skip_ask_flag
+   [AnyMore,~] = listdlg('PromptString','Select Additional Directories?',...
             'SelectionMode','single',...
             'ListString',LS);
+else
+   AnyMore = 2;
+end
+   
 if AnyMore == 1
     d = dir(DEFDIR);
     d = d(3:end);
@@ -191,5 +199,6 @@ else
         ElapsedTime(tStartJob);
     end
 end
+toc(TIC);
 
 end

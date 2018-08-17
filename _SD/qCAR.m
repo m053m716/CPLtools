@@ -15,7 +15,7 @@ function qCAR(varargin)
 %                                           want it to automatically look
 %                                           for a cluster to use)
 %
-%                   -> 'CLUSTER' (def: 'CPLMJS'; specifies the cluster to
+%                   -> 'CLUSTER' (def: 'CPLMJS2'; specifies the cluster to
 %                                                use, but only if
 %                                                FIND_CLUSTER is false).
 %
@@ -27,8 +27,8 @@ function qCAR(varargin)
 %   loaded onto a local machine.
 %
 % By: Max Murphy    v1.2	12/13/2017	Fixed adHocCAR and associated
-%										parameters in qCAR.
-%					v1.1    07/26/2017  Added FIND_CLUSTER and
+%                                      parameters in qCAR.
+%                   v1.1    07/26/2017  Added FIND_CLUSTER and
 %                                       findGoodCluster. Added
 %                                       documentation for varargin. Changed
 %                                       NumWorkersRange property for job to
@@ -45,14 +45,14 @@ DEF_DIR = 'P:\Rat';     % Default directory for UI prompt
 
 % For finding clusters
 CLUSTER_LIST = {'CPLMJS2'; 'CPLMJS3'}; % MJS cluster profiles
-NWR          = [2,4];     % Number of workers to use
-WAIT_TIME    = 15;        % Wait time for looping if using findGoodCluster
+NWR          = [1,2];     % Number of workers to use
+WAIT_TIME    = 4;        % Wait time for looping if using findGoodCluster
 INIT_TIME    = 2;         % Wait time before initializing findGoodCluster
-ASSIGN_DELAY = 15;        % Delay time after starting job, to allow worker 
+ASSIGN_DELAY = 4;        % Delay time after starting job, to allow worker 
                           % assignment to complete.
 
 % Other
-FS = 20000;             % Default sampling frequency (if not found; should
+FS = 24414.0625;        % Default sampling frequency (if not found; should
                         % only affect really files using the earliest
                         % extraction versions).
 

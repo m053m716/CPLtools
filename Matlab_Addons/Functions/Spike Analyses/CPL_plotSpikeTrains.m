@@ -103,6 +103,11 @@ if exist('behaviorData','var')~=0
    end
 end
 
+% Remove invalid rows
+rm_idx = isnan(behaviorData.(ALIGNMENT{1})) |...
+         isinf(behaviorData.(ALIGNMENT{1}));
+behaviorData(rm_idx,:) = [];
+
 
 % Check for "external_events" input argument as well
 if exist('external_events','var')~=0
@@ -113,12 +118,16 @@ if exist('external_events','var')~=0
       Z = cell(nEx,1);
       for iV = 1:nEx
          Z{iV} = external_events.(ex_V{iV});
+         % Remove invalid times
+         Z{iV}(isnan(Z{iV}) | isinf(Z{iV})) = [];
       end
    else
       ex_V = [];
       Z = [];
       nEx = 0;
    end
+else
+   nEx = 0;
 end
 
 %% DOUBLE-CHECK VARIABLE NAMES IN BEHAVIORDATA
@@ -204,8 +213,10 @@ for ii = 1:numel(F) % Represents all channels
       end
                                
       fig_xy = rand(1,2) * 0.3; % Jitter each figure around a little bit
-      fig_str = sprintf('%s: Channel %02g (%s)',block,ii,ALIGNMENT{iA}); 
-      figure('Name',[block ': Channel ' num2str(ii-1,'%02g')],...
+      fig_str = strrep(F(ii).name(1:end-4),'_ptrain','');
+      fig_str = strrep(fig_str,'_','-');
+      figure('Name',fig_str,...
+         'NumberTitle','off',...
          'Color','w',...
          'Units','Normalized',...
          'Position',[fig_xy, 0.4 0.3]);

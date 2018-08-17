@@ -4,6 +4,8 @@ function TDTExtraction_adhoc(varargin) %#ok<*INUSD>
 % as individual channels (_Filtered). Run though any other streaming fields
 % and seperate data (_Digital). Remaining block data saved in trial folder
 % (_EpocSnipInfo)
+USE_STATE_FILTER = true;    % Use state HPF?
+STATE_FC = 300;             % state filter high pass cutoff
 
 myJob = getCurrentJob;
 
@@ -57,8 +59,12 @@ if ~isempty(wav_data)
             data(isnan(data) | isinf(data)) = 0; % Make sure there isn't something that would mess up the filtering step.
             fs = double(block.streams.(wav_data{x}).fs);
             save(fullfile('\\kumc.edu\data\research\SOM RSCH\NUDOLAB\Processed_Data\Extracted_Data_To_Move',files_in{1,1},files_in{1,2},ani,files_in{1,3},[files_in{1,3} '_RawData'],[files_in{1,3} '_Raw' probe 'Ch_' num2str(y, '%03i') '.mat']),'data','fs','gitInfo','-v7.3');
-            [~, bpFilt] = extractionBandPassFilt('FS',fs);
-            data = single(filtfilt(bpFilt,double(data)));
+            if USE_STATE_FILTER
+               data = single(HPF(double(data),STATE_FC,fs));
+            else
+               [~, bpFilt] = extractionBandPassFilt('FS',fs);
+               data = single(filtfilt(bpFilt,double(data)));
+            end
             save(fullfile('\\kumc.edu\data\research\SOM RSCH\NUDOLAB\Processed_Data\Extracted_Data_To_Move',files_in{1,1},files_in{1,2},ani,files_in{1,3},[files_in{1,3} '_Filtered'],[files_in{1,3} '_Filt' probe 'Ch_' num2str(y, '%03i') '.mat']),'data','fs','gitInfo','-v7.3');
         end
         block.streams = rmfield(block.streams,wav_data{x});

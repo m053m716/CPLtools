@@ -17,7 +17,7 @@ SAVELOC = 'P:/Extracted_Data_To_Move/Rat/Intan';
 
 RAW_ID      = '_RawData';                 % Raw stream ID
 FILT_ID     = '_Filtered';                % Filtered stream ID
-CAR_ID     = '_FilteredCAR';              % Spatial re-reference stream ID
+CAR_ID      = '_FilteredCAR';              % Spatial re-reference stream ID
 DIG_ID      = '_Digital';                 % Digital stream ID
 STIM_SUPPRESS = false;
 STIM_P_CH = [nan, nan];
@@ -729,6 +729,7 @@ if (num_board_dig_out_channels > 0)
     save(infoname,'info','gitInfo','-v7.3');
     if (data_present)
         for i = 1:num_board_dig_out_channels
+            paths.DW_N = strrep(paths.DW_N, '\', '/');
             fname = sprintf(paths.DW_N, board_dig_out_channels(i).custom_channel_name); 
             data = single(board_dig_out_data(i,:));           
             save(fname,'data','fs','gitInfo','-v7.3');            
