@@ -262,7 +262,14 @@ set(gca,'YTickLabel',strrep({F.name},'_',' '));
 name = strsplit(F(1).folder,filesep);
 name = name{end};
 name = strsplit(name,'_');
-name = strjoin(name([1:2,end]),'_');
+switch numel(name{2})
+   case 4 % For example, RC Data set: "RC-29_2012_11_29"
+      name = strjoin(name([1:4,end]),'_');
+   case 10 % For example, Bilateral Task: "R18-46_2018-08-17_1"
+      name = strjoin(name([1:2,end]),'_');
+   otherwise % Not sure
+      name = strjoin(name,'_');
+end
 xlabel('Time (sec)');
 
 %% ADD STIM TIMES

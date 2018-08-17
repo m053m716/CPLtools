@@ -27,7 +27,7 @@ function screenChannels(F,varargin)
 
 %% DEFAULTS
 PLOT_TYPE = nan; % ('RawData' // 'Filtered' // 'FilteredCAR')
-PAUSE_TIMER = 1; % Seconds
+PAUSE_TIMER = 2; % Seconds
 
 LEN = 0.25;
 OFFSET = 200;
@@ -39,16 +39,19 @@ for iV = 1:2:numel(varargin)
    eval([upper(varargin{iV}) '=varargin{iV+1};']);
 end
 
-%% LOOP THROUGH AND PLOT CHANNELS FOR ALL BLOCKS IN STRUCT
+%%
 for iF = 1:numel(F)
-   
-   [DIR,~] = get_path_to_channels(F(iF).folder,F(iF).name,PLOT_TYPE);
+   if isnan(PLOT_TYPE(1))
+      plot_type = 'FilteredCAR';
+      DIR = fullfile(F(iF).folder,F(iF).name,[F(iF).name '_' plot_type]);
+      if exis
+   else
+      plot_type = PLOT_TYPE;
+      DIR = fullfile(F(iF).folder,F(iF).name,[F(iF).name '_' plot_type]);
+   end
    
    try
-      plotChannels('DIR',DIR,...
-         'OFFSET',OFFSET,...
-         'LEN',LEN,...
-         'TAG',TAG,...
+      plotChannels('DIR',DIR,'OFFSET',OFFSET,'LEN',LEN,'TAG',TAG,...
          'CHECK_FOR_SPIKES',false);
       pause(PAUSE_TIMER);
       delete(gcf);
@@ -57,27 +60,5 @@ for iF = 1:numel(F)
       delete(gcf);
    end
 end
-
-%% SUB-FUNCTIONS
-
-   % Determine the best folder to plot, if no type is specified
-   function [DIR,plot_type] = get_path_to_channels(folder,name,ptype)
-      if isnan(ptype(1))
-         plot_type = 'FilteredCAR';
-         DIR = fullfile(folder,name,[name '_' plot_type]);
-         if exist(DIR,'dir')==0
-            plot_type = 'Filtered';
-            DIR = fullfile(folder,name,[name '_' plot_type]);
-            if exist(DIR,'dir')==0
-               plot_type = 'Raw';
-               DIR = fullfile(folder,name,[name '_' plot_type]);
-            end
-         end
-      else
-         plot_type = ptype;
-         DIR = fullfile(folder,name,[name '_' plot_type]);
-      end
-   end
-
 
 end
