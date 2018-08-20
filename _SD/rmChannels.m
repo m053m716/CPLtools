@@ -48,10 +48,24 @@ for iF = 1:numel(F)
    
    for ii = 1:numel(ch_list)
       try
-         delete(fullfile(DIR,[F(iF).name '_RawData'],...
-            [F(iF).name '_Raw_' p_list{ii} '_Ch_' ch_list{ii} '.mat']));
-         delete(fullfile(DIR,[F(iF).name '_Filtered'],...
-            [F(iF).name '_Filt_' p_list{ii} '_Ch_' ch_list{ii} '.mat']));
+         fname = fullfile(DIR,[F(iF).name '_RawData'],...
+            [F(iF).name '_Raw_' p_list{ii} '_Ch_' ch_list{ii} '.mat']);
+         if exist(fname,'file')~=0
+            delete(fname);
+         end
+         
+         fname = fullfile(DIR,[F(iF).name '_Filtered'],...
+            [F(iF).name '_Filt_' p_list{ii} '_Ch_' ch_list{ii} '.mat']);
+         if exist(fname,'file')~=0
+            delete(fname);
+         end
+         
+         fname = fullfile(DIR,[F(iF).name '_FilteredCAR'],...
+            [F(iF).name '_FiltCAR_' p_list{ii} '_Ch_' ch_list{ii} '.mat']);
+         if exist(fname,'file')~=0
+            delete(fname);
+         end
+         
       catch
          fprintf(1,'No channel %s on probe %s for %s.',...
             ch_list{ii},p_list{ii},F(iF).name);
