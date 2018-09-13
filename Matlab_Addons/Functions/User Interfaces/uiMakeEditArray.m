@@ -15,12 +15,31 @@ function editArray = uiMakeEditArray(container,y,varargin)
 %   varargin   :     (Optional) 'NAME', value input argument pairs that
 %                             modify the uicontrol.
 %
+%                    -> 'X' [def: 0.500] // Normalized X (Position(1))
+%
+%                    -> 'W' [def: 0.475] // Normalized width (Position(3))
+%
+%                    -> 'H' [def: 0.150] // Normalized height (Position(4))
+%
 %  --------
 %   OUTPUT
 %  --------
 %  editArray   :     k x 1 cell array of edit style uicontrols.
 %
 % By: Max Murphy  v1.0  08/30/2018   Original version (R2017b)
+%
+%                 v1.1  09/07/2018   Modified varargin format
+
+%% DEFAULTS
+% Normalized position coordinates
+H = 0.150;
+W = 0.475;
+X = 0.500;
+
+%% PARSE VARARGIN
+for iV = 1:2:numel(varargin)
+   eval([upper(varargin{iV}) '=varargin{iV+1};']);
+end
 
 %% CONSTRUCT GRAPHICS ARRAY
 editArray = cell(numel(y),1);
@@ -28,19 +47,12 @@ editArray = cell(numel(y),1);
 for ii = 1:numel(y)
    editArray{ii,1} = uicontrol(container,'Style','edit',...
       'Units','Normalized',...
-      'Position',[0.5 y(ii) 0.475 0.15],...
+      'Position',[X y(ii) W H],...
       'FontName','Arial',...
       'FontSize',14,...
       'Enable','off',...
       'String','N/A',...
       'UserData',ii);
-   
-   % If extra arguments specified, modify them here
-   for iV = 1:2:numel(varargin)
-      if isproperty(editArray{ii},varargin{iV})
-         set(editArray{ii},varargin{iV},varargin{iV+1});
-      end
-   end
    
 end
 

@@ -24,14 +24,16 @@ function batchExtractTDTEpocSnip(tankPath,varargin)
 % By: Max Murphy  v1.0   08/30/2018  Original version (R2017b)
 
 %% DEFAULTS
+% Batch parameters
 ANIMAL_ID = 'R*';
+DEF_TANK = 'P:\Extracted_Data_To_Move\Rat\TDTRat';
+
+% For extractTDTEpocSnip
 IN_ID = '_EpocSnipInfo.mat';
 EXCLUDED_EPOCS = {'Tick'};
 DB_TIME = 0.25;         % HIGH time (seconds)
-
 OUT_DIR = '_Digital';
 FS = 24414.0625;
-DEF_TANK = 'P:\Extracted_Data_To_Move\Rat\TDTRat';
 
 %% PARSE VARARGIN
 for iV = 1:2:numel(varargin)
@@ -50,28 +52,13 @@ h = waitbar(0,'Please wait, extracting epoc info...');
 for iA = 1:numel(A)
    B = dir(fullfile(A(iA).folder,A(iA).name,[A(iA).name '*']));
    for iB = 1:numel(B)
-      name = fullfile(B(iB).folder,B(iB).name);
-      infile = fullfile(name,[B(iB).name IN_ID]);
-      if exist(infile,'file')==0
-         fprintf(1,'%s skipped.\n',B(iB).name);
-         continue;
-      end
-      
-      load(infile,'block');
-      etype = setdiff(fieldnames(block.epocs),EXCLUDED_EPOCS);
-      
-      t = 0:(1/FS):CPL_time2sec(block.info.duration);
-      for iE = 1:numel(etype)
-         x = block.epocs.(etype{iE});
-         data = zeros(size(t));
-         fs = FS;
-         for ii = 1:numel(x.onset)
-            data((t >= x.onset(ii)) & (t < (x.onset(ii) + DB_TIME))) = 1;
-         end
-         save(fullfile(name,[B(iB).name OUT_DIR],[B(iB).name '_' ...
-            etype{iE} '.mat']),'data','fs','-v7.3');
-      end
-         
+      extractTDTEpocSnip(B(iB),...
+         'IN_ID',IN_ID,...
+         'EXCLUDED_EPOCS',EXCLUDED_EPOCS,...
+         'DB_TIME',DB_TIME,...
+         'OUT_DIR',OUT_DIR,...
+         'FS',FS,...
+         'DEF_TANK',DEF_TANK);         
    end   
    waitbar(iA/numel(A));
 end

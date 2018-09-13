@@ -1,45 +1,74 @@
+function qBatch(func_str,block,pre_align,post_align)
 %% QBATCH   Script space for doing batch runs
-
-%% CLEAR WORKSPACE AND LOAD FILE STRUCT TO SORT
-clear; clc;
-load('P:\Rat\BilateralReach\Data\info.mat','block');
+%
+%  QBATCH(func_str);
+%  QBATCH(func_str,pre_align);
+%  QBATCH(func_str,pre_align,post_align);
+%
+%  --------
+%   INPUTS
+%  --------
+%  func_str    :     String referencing function that will be used to get
+%                    alignment times to do spike detection on only snippets
+%                    around epochs of interest.
+%
+%  block       :     Struct array containing all the recording BLOCKS to
+%                    run through.
+%
+%  pre_align   :     (Optional; def: 2 seconds) Amount of time prior to the
+%                       alignment to include in each epoch.
+%
+%  post_align  :     (Optional: def: 1 second) Amount of time after each
+%                       alignment to include in each epoch.
+%
+%  --------
+%   OUTPUT
+%  --------
+%  Does spike detection on series of epochs excluding a majority of the
+%  recording. Can be useful to mitigate lots of noisy activity that isn't
+%  specific to behavior of interest, and which causes clustering to behave
+%  poorly.
+%
+% By: Max Murphy  v1.0   09/04/2018    Original version (R2017b)
 
 %% DEFAULTS
 E_PRE = 2.000;
 E_POST = 1.000;
 FS = 24414.0625;
 
+%% PARSE INPUT
+addpath('adhoc_detect');
+
+if exist('pre_align','var')==0
+   pre_align = E_PRE;
+end
+
+if exist('post_align','var')==0
+   post_align = E_POST;
+end
+
 %% LOOP ON STRUCT AND QUEUE SPIKE DETECTION
 TIC = tic;
 for ii = 1:numel(block)
-   try
-      load(fullfile('C:\MyRepos\_M\180212 RC LFADS Multiunit\aligned',...
-         [block(ii).name '_aligned.mat']),'grasp');
-      b = fullfile(block(ii).folder,block(ii).name);
-      info = load(fullfile(b,[block(ii).name '_EpocSnipInfo.mat']),'block');
-      tFinal = CPL_time2sec(info.block.info.duration);
-   catch
-      fprintf(1,'\n\tBlock: %s not loaded.\n',block(ii).name);
+   
+   eval(sprintf('[ts,b,tFinal] = %s(block(ii));',func_str));
+   
+   if isempty(ts)
+      continue;
+   elseif isnan(ts(1))
       continue;
    end
    
+   ts((ts - pre_align) <= 0) = []; %#ok<*AGROW>
+   ts((ts + post_align) >= tFinal) = [];   
    
-   % This part just tries to remove epochs that are not around behavior of
-   % interest; this way spike detection and more importantly CLUSTERING is
-   % only done on the spikes of interest:
-   ts = sort([grasp.s, grasp.f],'ascend');
-   
-   ts((ts - E_PRE) <= 0) = [];
-   ts((ts + E_POST) >= tFinal) = [];
-      
-   
-   t_art = [1; ts(1)-E_PRE];
+   t_art = [1; ts(1)-pre_align];
    for iT = 2:numel(ts)
-      t_add = [(ts(iT-1)+E_POST); (ts(iT)-E_PRE)];
-      t_art = [t_art, t_add]; %#ok<AGROW>
+      t_add = [(ts(iT-1)+post_align); (ts(iT)-pre_align)];
+      t_art = [t_art, t_add]; 
    end
-   t_add = [(ts(end)+E_POST); tFinal];
-   t_art = [t_art, t_add]; %#ok<AGROW>
+   t_add = [(ts(end)+post_align); tFinal];
+   t_art = [t_art, t_add]; 
    
    t_art = round(t_art * FS);
    
@@ -47,4 +76,6 @@ for ii = 1:numel(block)
    qSD('DIR',b,'ARTIFACT',t_art,'TIC',TIC,'DELETE_OLD_PATH',true);
    
 end
-toc;
+toc(TIC);
+
+end

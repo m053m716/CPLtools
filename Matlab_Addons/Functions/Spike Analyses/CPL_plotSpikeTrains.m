@@ -51,8 +51,9 @@ SPIKE_DIR = '_wav-sneo_CAR_Spikes';
 SPIKE_ID = 'ptrain';
 
 BEHAV_ID = '_Scoring.mat';
+DIG_ID = '_Digital';
 
-ALIGNMENT = {'Reach';'Grasp'};
+ALIGNMENT = {'Reach';'Grasp';'Support'};
 NUM_ID_VARNAME = 'Outcome';
 CHAR_ID_VARNAME = 'Forelimb';
 DEBUG = false;
@@ -61,6 +62,7 @@ AUTO_SAVE = true;
 OUT_ID = 'Rasters';
 
 X = nan;
+Y_LIM = [0 25];
 
 %% PARSE VARARGIN
 for iV = 1:2:numel(varargin)
@@ -80,33 +82,39 @@ block = block{end};
 
 %% LOAD BEHAVIOR DATA IF NOT SUPPLIED ALREADY
 % Check for behaviorData table
-if exist('behaviorData','var')~=0
-   if ~istable(behaviorData)
-      beh_file = fullfile(DIR,[block BEHAV_ID]);
-      if exist(beh_file,'file')==0
-         error('Behavior scoring not yet done for %s, or bad ID: %s.',...
-            block,BEHAV_ID);
-      else
-         b = load(beh_file);
+if exist('behaviorData','var')==0
+   behaviorData = nan;
+end
+
+if ~istable(behaviorData)
+   beh_file = fullfile(DIR,[block DIG_ID],[block BEHAV_ID]);
+   if exist(beh_file,'file')==0
+      error('Behavior scoring not yet done for %s, or bad ID: %s.',...
+         block,BEHAV_ID);
+   else
+      b = load(beh_file);
+      if exist('external_events','var')==0
          if isfield(b,'external_events')
             % Automatically get "extra" alignment events
             external_events = b.external_events;
-            
-         end
-         
-         if isfield(b,'behaviorData')
-            behaviorData = b.behaviorData;   
          else
-            error('No behaviorData variable found.');
+            vtemp = ALIGNMENT(ismember(ALIGNMENT,...
+               b.behaviorData.Properties.VariableNames));
+            external_events = struct;
+            for iV = 1:numel(vtemp)
+               external_events.(vtemp{iV}) = b.behaviorData.(vtemp{iV});
+            end
          end
+      end
+
+      if isfield(b,'behaviorData')
+         behaviorData = b.behaviorData;   
+      else
+         error('No behaviorData variable found.');
       end
    end
 end
 
-% Remove invalid rows
-rm_idx = isnan(behaviorData.(ALIGNMENT{1})) |...
-         isinf(behaviorData.(ALIGNMENT{1}));
-behaviorData(rm_idx,:) = [];
 
 
 % Check for "external_events" input argument as well
@@ -194,18 +202,31 @@ else
 end
 
 
-char_ID = unique(behaviorData.(CHAR_ID_VARNAME));
-num_ID = unique(behaviorData.(NUM_ID_VARNAME));
-
 %% MAKE ONE FIGURE PER CHANNEL, PER ALIGNMENT, WITH SUBPLOTS (ONE AT A TIME)
 for ii = 1:numel(F) % Represents all channels
    for iA = 1:numel(ALIGNMENT) % Represents all alignments per trial
+      
+      % Get alignment times (exclude "inf" or NaN elements)
+      t_align = behaviorData.(ALIGNMENT{iA});
+      b = behaviorData(~isinf(t_align) & ~isnan(t_align),:);
+      
+      char_ID = unique(b.(CHAR_ID_VARNAME));
+      num_ID = unique(b.(NUM_ID_VARNAME));
+      
+      t_align(isinf(t_align)) = [];
+      t_align(isnan(t_align)) = [];
+      
+      if isempty(t_align)
+         fprintf(1,'Skipping %s alignment...',ALIGNMENT{iA});
+         continue;
+      end
+      
       % Get spike times
-      byChannel = CPL_alignspikes(X,behaviorData.(ALIGNMENT{iA}),'FS',FS);
+      byChannel = CPL_alignspikes(X,t_align,'FS',FS);
       
       % Get "extra" alignment times
       if nEx > 0
-         byVar = CPL_alignspikes(Z,behaviorData.(ALIGNMENT{iA}),'FS',FS);
+         byVar = CPL_alignspikes(Z,t_align,'FS',FS);
          EX = cell(numel(byVar{1}),numel(byVar));
          for iEx = 1:nEx
             EX(:,iEx) = byVar{iEx};
@@ -229,8 +250,8 @@ for ii = 1:numel(F) % Represents all channels
             
             % Get alignment trials that meet criteria
             curIdx = getTrialSubset(char_ID(iChar),num_ID(iNum),...
-                                    behaviorData.(CHAR_ID_VARNAME),...
-                                    behaviorData.(NUM_ID_VARNAME));
+                                    b.(CHAR_ID_VARNAME),...
+                                    b.(NUM_ID_VARNAME));
                                  
             % Make the raster plot for this channel/alignment subplot
             if nEx > 0
@@ -244,12 +265,29 @@ for ii = 1:numel(F) % Represents all channels
                   'PlotType','vertline',...
                   'AutoLabel',true);
             end
-            titlestr = sprintf('%s - %s: %d',...
-               char_ID(iChar),...
-               NUM_ID_VARNAME,...
-               num_ID(iNum));
+            if isnumeric(char_ID(iChar))
+               switch char_ID(iChar)
+                  case 0
+                     titlestr = sprintf('L- %s: %d',...
+                        NUM_ID_VARNAME,...
+                        num_ID(iNum));
+                  case 1
+                     titlestr = sprintf('R - %s: %d',...
+                        NUM_ID_VARNAME,...
+                        num_ID(iNum));
+                  otherwise
+                     error('Invalid non-character value for last column of behaviorData.');
+               end
+               
+            else
+               titlestr = sprintf('%s - %s: %d',...
+                  char_ID(iChar),...
+                  NUM_ID_VARNAME,...
+                  num_ID(iNum));
+               
+            end
             title(titlestr);
-
+            ylim(Y_LIM);
             subplot_pos = subplot_pos + 1;
          end
       end
