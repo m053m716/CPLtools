@@ -44,8 +44,8 @@ function qCAR(varargin)
 DEF_DIR = 'P:\Rat';     % Default directory for UI prompt
 
 % For finding clusters
-CLUSTER_LIST = {'CPLMJS2'; 'CPLMJS3'}; % MJS cluster profiles
-NWR          = [1,2];     % Number of workers to use
+CLUSTER_LIST = {'CPLMJS';'CPLMJS2'; 'CPLMJS3'}; % MJS cluster profiles
+NWR          = [1,1];     % Number of workers to use
 WAIT_TIME    = 4;        % Wait time for looping if using findGoodCluster
 INIT_TIME    = 2;         % Wait time before initializing findGoodCluster
 ASSIGN_DELAY = 4;        % Delay time after starting job, to allow worker 
