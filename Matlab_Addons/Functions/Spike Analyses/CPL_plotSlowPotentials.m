@@ -51,8 +51,8 @@ block = block{end};
 F = dir(fullfile(DIR,[block RAW_DIR],['*' RAW_ID '*.mat']));
 
 %% GET INDEXING FOR BEHAVIOR TYPES
-iLeft = ismember(behaviorData.Forelimb,'L');
-iRight = ismember(behaviorData.Forelimb,'R');
+iLeft = ismember(behaviorData.Forelimb,'L') | ismember(behaviorData.Forelimb,0);
+iRight = ismember(behaviorData.Forelimb,'R')| ismember(behaviorData.Forelimb,1);
 
 %% LOOP THROUGH AND LOOK AT ONE CHANNEL AT A TIME
 % figure('Name', 'Slow Potentials Viewer',...
@@ -62,7 +62,10 @@ iRight = ismember(behaviorData.Forelimb,'R');
     
     
 for ii = 1:numel(F)
-   figure('Name',[block ': Channel ' num2str(ii-1,'%02g')],...
+   str_info = strsplit(F(ii).name(1:end-4),'_');
+   ch = str_info{end};
+   probe = str_info{end-2};
+   figure('Name',[block ': ' probe ' - Channel ' ch],...
           'Color','w',...
           'NumberTitle','off',...
           'WindowStyle','docked');
@@ -107,7 +110,7 @@ for ii = 1:numel(F)
    xlim(XLIM);
    title('Grasp - R');
    
-   suptitle([strrep(block,'_','-') ': Channel ' num2str(ii-1,'%02g')]);
+   suptitle([strrep(block,'_','-') ': ' probe ' - Channel ' ch]);
 end
 
 end
