@@ -13,9 +13,9 @@ function rates = Plot_Spike_Rates(SPK,varargin)
 %
 %                       => 'D' (def: none; if specified, use D from
 %                                          SIMPLE_SPIKE_ANALYSIS)
-%                       => 'TYPE' (def: 'gauss'; can be 'tri', 'rect' or 
+%                       => 'TYPE' (def: 'tri'; can be 'tri', 'rect' or 
 %                                       'gauss'. Characterizes shape of 
-%                                       rate estimator kernel)
+%                                        rate estimator kernel)
 %                       => 'ENDS' (def: 0; set 0 to auto-0 ends (faster))
 %                       => 'WLEN' (def: 1; number of seconds for
 %                                       rate estimator kernel window)
@@ -34,7 +34,7 @@ function rates = Plot_Spike_Rates(SPK,varargin)
 % See also: SIMPLE_SPIKE_ANALYSIS, LFP_SPIKE_COHERENCE, FASTSMOOTH
 
 %% DEFAULTS
-TYPE = 'gauss';     % 'rect'; 'tri'; 'gauss' (kernel type)
+TYPE = 'tri';     	% 'rect'; 'tri'; 'gauss' (kernel type)
 ENDS = 0;           % 0: set ends to 0; 1: progressively smooth ends
 WLEN = 30;          % Smooth window length (seconds)
 FS_DEC = 1;         % Decimated sample rate for rate estimation

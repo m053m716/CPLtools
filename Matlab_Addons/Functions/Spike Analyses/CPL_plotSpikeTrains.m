@@ -1,10 +1,20 @@
-function CPL_plotSpikeTrains(behaviorData,external_events,varargin)
+function [byChannel,SPK] = CPL_plotSpikeTrains(behaviorData,external_events,varargin)
 %% CPL_PLOTSPIKETRAINS  Plot all rasters for spike trains in a given BLOCK
 %
 %  CPL_PLOTSPIKETRAINS;
 %  CPL_PLOTSPIKETRAINS(behaviorData);
 %  CPL_PLOTSPIKETRAINS(behaviorData,external_events,'NAME',value,...);
 %  CPL_PLOTSPIKETRAINS([],[],'NAME',value,...);
+%
+%  byChannel =
+%     CPL_PLOTSPIKETRAINS(behaviorData,external_events,'NAME',value,...);
+%     -> This does not plot anything, but returns byChannel array for data
+%         processing (for example spike rates).
+%
+%  [byChannel,SPK] =
+%     CPL_PLOTSPIKETRAINS(behaviorData,external_events,'NAME',value,...);
+%     -> This does not plot anything, but returns byChannel array for data
+%         processing (for example spike rates).
 %
 %  --------
 %   INPUTS
@@ -32,6 +42,14 @@ function CPL_plotSpikeTrains(behaviorData,external_events,varargin)
 %  by Unit, with different subplot columns corresponding to different trial
 %  type identifiers from the last column of behaviorData.
 %
+%  If output arguments are present, nothing is plotted:
+%  
+%    byChannel    :     Cell array of spike times relative to grasp for
+%                          each trial. Each array element is a channel.
+%
+%     SPK         :     Data table with variables:
+%                          {'pname','fname','fs','Peaks'}.
+%
 % By: Max Murphy  v1.0  05/07/2018  Original version (R2017b)
 %                                   [rough - could be improved a lot]
 %
@@ -53,7 +71,7 @@ SPIKE_ID = 'ptrain';
 BEHAV_ID = '_Scoring.mat';
 DIG_ID = '_Digital';
 
-ALIGNMENT = {'Reach';'Grasp';'Support'};
+ALIGN = {'Reach';'Grasp';'Support'};
 NUM_ID_VARNAME = 'Outcome';
 CHAR_ID_VARNAME = 'Forelimb';
 DEBUG = false;
@@ -63,6 +81,9 @@ OUT_ID = 'Rasters';
 
 X = nan;
 Y_LIM = [0 25];
+
+E_PRE    = 2.000; 	% Epoch "pre" alignment (seconds)
+E_POST   = 1.000;    % Epoch "post" alignment (seconds)
 
 %% PARSE VARARGIN
 for iV = 1:2:numel(varargin)
@@ -98,7 +119,7 @@ if ~istable(behaviorData)
             % Automatically get "extra" alignment events
             external_events = b.external_events;
          else
-            vtemp = ALIGNMENT(ismember(ALIGNMENT,...
+            vtemp = ALIGN(ismember(ALIGN,...
                b.behaviorData.Properties.VariableNames));
             external_events = struct;
             for iV = 1:numel(vtemp)
@@ -142,14 +163,14 @@ end
 v = behaviorData.Properties.VariableNames;
 
 % Check "alignment" possibilities (behavior strings usually)
-iKeep = true(size(ALIGNMENT));
-for iA = 1:numel(ALIGNMENT)
-   if ~ismember(ALIGNMENT{iA},v)
-      warning('%s is not an alignment option.\n',ALIGNMENT{iA});
+iKeep = true(size(ALIGN));
+for iA = 1:numel(ALIGN)
+   if ~ismember(ALIGN{iA},v)
+      warning('%s is not an alignment option.\n',ALIGN{iA});
       iKeep(iA) = false;
    end
 end
-ALIGNMENT = ALIGNMENT(iKeep);
+ALIGN = ALIGN(iKeep);
 
 % Check numeric variable trial identifier
 if ~ismember(NUM_ID_VARNAME,v)
@@ -166,48 +187,21 @@ if ~ismember(CHAR_ID_VARNAME,v)
 end
 
 %% LOAD SPIKE TRAINS
-F = dir(fullfile(DIR,[block SPIKE_DIR],['*' SPIKE_ID '*.mat']));
-
-if ~iscell(X)
-   X = cell(numel(F),1);
-   fprintf(1,'\nLoading spike trains for %s...',block)
-   h = waitbar(0,'Please wait, loading spike trains...');
-   for ii = 1:numel(F)
-      in = load(fullfile(F(ii).folder,F(ii).name));
-      X{ii} = in.peak_train;
-      if DEBUG
-         mtb(X);
-      end
-      if ii == 1
-         if isfield(in,'pars')
-            if isfield(in.pars,'FS')
-               FS = in.pars.FS;
-               fprintf(1,'\n->\tFS detected: %g Hz\t\t\t\t ...',FS);
-            else
-               beep;
-               fprintf(1,'\n->\tUsing default FS: %g Hz\t\t\t\t ...',FS);
-            end
-         else
-            beep;
-            fprintf(1,'\n->\tUsing default FS: %g Hz\t\t\t\t ...',FS);
-         end
-      end
-      waitbar(ii/numel(F));
-   end
-   delete(h);
-   fprintf(1,'complete.\n');
-else
-   beep;
-   fprintf(1,'\n->\tUsing default FS: %g Hz\t\t\t\t ...\n',FS);
-end
-
+[X,FS,SPK] = CPL_loadSpikeTrains('DIR',DIR);
 
 %% MAKE ONE FIGURE PER CHANNEL, PER ALIGNMENT, WITH SUBPLOTS (ONE AT A TIME)
+byChannel = cell(numel(F),numel(ALIGN));
+h = waitbar(0,'Please wait, aligning and plotting spikes...');
+nA = numel(ALIGN)*numel(F);
+iCount = 0;
 for ii = 1:numel(F) % Represents all channels
-   for iA = 1:numel(ALIGNMENT) % Represents all alignments per trial
+   
+   for iA = 1:numel(ALIGN) % Represents all alignments per trial
+      waitbar(iCount/nA);
+      iCount = iCount + 1;
       
       % Get alignment times (exclude "inf" or NaN elements)
-      t_align = behaviorData.(ALIGNMENT{iA});
+      t_align = behaviorData.(ALIGN{iA});
       b = behaviorData(~isinf(t_align) & ~isnan(t_align),:);
       
       char_ID = unique(b.(CHAR_ID_VARNAME));
@@ -217,92 +211,96 @@ for ii = 1:numel(F) % Represents all channels
       t_align(isnan(t_align)) = [];
       
       if isempty(t_align)
-         fprintf(1,'Skipping %s alignment...',ALIGNMENT{iA});
+         fprintf(1,'Skipping %s alignment...',ALIGN{iA});
          continue;
       end
       
       % Get spike times
-      byChannel = CPL_alignspikes(X,t_align,'FS',FS);
+      byChannel{ii,iA} = CPL_alignspikes(X,t_align,'FS',FS,'E_PRE',E_PRE,'E_POST',E_POST);
       
       % Get "extra" alignment times
       if nEx > 0
-         byVar = CPL_alignspikes(Z,t_align,'FS',FS);
+         byVar = CPL_alignspikes(Z,t_align,'FS',FS,'E_PRE',E_PRE,'E_POST',E_POST);
          EX = cell(numel(byVar{1}),numel(byVar));
          for iEx = 1:nEx
             EX(:,iEx) = byVar{iEx};
          end
       end
-                               
-      fig_xy = rand(1,2) * 0.3; % Jitter each figure around a little bit
-      fig_str = strrep(F(ii).name(1:end-4),'_ptrain','');
-      fig_str = strrep(fig_str,'_','-');
-      figure('Name',fig_str,...
-         'NumberTitle','off',...
-         'Color','w',...
-         'Units','Normalized',...
-         'Position',[fig_xy, 0.4 0.3]);
+       
+      if nargin==0
+         fig_xy = rand(1,2) * 0.3; % Jitter each figure around a little bit
+         fig_str = strrep(F(ii).name(1:end-4),'_ptrain','');
+         fig_str = strrep(fig_str,'_','-');
+         figure('Name',fig_str,...
+            'NumberTitle','off',...
+            'Color','w',...
+            'Units','Normalized',...
+            'Position',[fig_xy, 0.4 0.3]);
+      
    
-      % Keep track of which subplot we're on (for simplicity)
-      subplot_pos = 1;
-      for iNum = 1:numel(num_ID) % Flexible (i.e. outcome 0 vs 1 for success)
-         for iChar = 1:numel(char_ID) % Flexible (i.e. 'L'/'R' for hand)
-            subplot(numel(num_ID),numel(char_ID),subplot_pos);
-            
-            % Get alignment trials that meet criteria
-            curIdx = getTrialSubset(char_ID(iChar),num_ID(iNum),...
-                                    b.(CHAR_ID_VARNAME),...
-                                    b.(NUM_ID_VARNAME));
-                                 
-            % Make the raster plot for this channel/alignment subplot
-            if nEx > 0
-               CPL_plotSpikeRaster(byChannel{ii}(curIdx),...
-                  'PlotType','vertline',...
-                  'AutoLabel',true,...
-                  'Extra',EX,...
-                  'ExtraLabel',ex_V);
-            else
-               CPL_plotSpikeRaster(byChannel{ii}(curIdx),...
-                  'PlotType','vertline',...
-                  'AutoLabel',true);
-            end
-            if isnumeric(char_ID(iChar))
-               switch char_ID(iChar)
-                  case 0
-                     titlestr = sprintf('L- %s: %d',...
-                        NUM_ID_VARNAME,...
-                        num_ID(iNum));
-                  case 1
-                     titlestr = sprintf('R - %s: %d',...
-                        NUM_ID_VARNAME,...
-                        num_ID(iNum));
-                  otherwise
-                     error('Invalid non-character value for last column of behaviorData.');
+         % Keep track of which subplot we're on (for simplicity)
+         subplot_pos = 1;
+         for iNum = 1:numel(num_ID) % Flexible (i.e. outcome 0 vs 1 for success)
+            for iChar = 1:numel(char_ID) % Flexible (i.e. 'L'/'R' for hand)
+               subplot(numel(num_ID),numel(char_ID),subplot_pos);
+
+               % Get alignment trials that meet criteria
+               curIdx = getTrialSubset(char_ID(iChar),num_ID(iNum),...
+                                       b.(CHAR_ID_VARNAME),...
+                                       b.(NUM_ID_VARNAME));
+
+               % Make the raster plot for this channel/alignment subplot
+               if nEx > 0
+                  CPL_plotSpikeRaster(byChannel{ii,iA}(curIdx),...
+                     'PlotType','vertline',...
+                     'AutoLabel',true,...
+                     'Extra',EX,...
+                     'ExtraLabel',ex_V);
+               else
+                  CPL_plotSpikeRaster(byChannel{ii,iA}(curIdx),...
+                     'PlotType','vertline',...
+                     'AutoLabel',true);
                end
-               
-            else
-               titlestr = sprintf('%s - %s: %d',...
-                  char_ID(iChar),...
-                  NUM_ID_VARNAME,...
-                  num_ID(iNum));
-               
+               if isnumeric(char_ID(iChar))
+                  switch char_ID(iChar)
+                     case 0
+                        titlestr = sprintf('L- %s: %d',...
+                           NUM_ID_VARNAME,...
+                           num_ID(iNum));
+                     case 1
+                        titlestr = sprintf('R - %s: %d',...
+                           NUM_ID_VARNAME,...
+                           num_ID(iNum));
+                     otherwise
+                        error('Invalid non-character value for last column of behaviorData.');
+                  end
+
+               else
+                  titlestr = sprintf('%s - %s: %d',...
+                     char_ID(iChar),...
+                     NUM_ID_VARNAME,...
+                     num_ID(iNum));
+
+               end
+               title(titlestr);
+               ylim(Y_LIM);
+               subplot_pos = subplot_pos + 1;
             end
-            title(titlestr);
-            ylim(Y_LIM);
-            subplot_pos = subplot_pos + 1;
          end
-      end
-      
-      % Make super-title for all subplots and save if desired
-      suptitle(strrep(fig_str,'_','-'));
-      
-      
-      % Save and close, if desired
-      if AUTO_SAVE
-         align_ID = ['_' ALIGNMENT{iA}];
-         save_close_fig(gcf,DIR,block,F(ii).name,SPIKE_ID,OUT_ID,align_ID);
+
+         % Make super-title for all subplots and save if desired
+         suptitle(strrep(fig_str,'_','-'));
+
+
+         % Save and close, if desired
+         if AUTO_SAVE
+            align_ID = ['_' ALIGN{iA}];
+            save_close_fig(gcf,DIR,block,F(ii).name,SPIKE_ID,OUT_ID,align_ID);
+         end
       end
    end
 end
+delete(h);
 
    function curIdx = getTrialSubset(char_ID_match,...
                                     num_ID_match,...
