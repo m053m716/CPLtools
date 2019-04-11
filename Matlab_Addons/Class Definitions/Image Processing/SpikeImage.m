@@ -47,7 +47,7 @@ classdef SpikeImage < handle
    properties (Access = private)
       NumClus_Max = 9;
       CMap;
-      YLim = [-150 75];
+      YLim = [-250 100];
       XPoints = 100;    % Number of points for X resolution
       YPoints = 101;    % Number of points for Y resolution
       T = 1.2;          % Approx. time (milliseconds) of waveform

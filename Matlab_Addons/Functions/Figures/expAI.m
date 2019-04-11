@@ -35,9 +35,9 @@ FONTNAME = 'Arial';                 %Set font name (if FORMATFONT true)
 FONTSIZE = 16;                      %Set font size (if FORMATFONT true)
 
 %Print function modifiers
-FORMATTYPE  = '-dpsc2';             % Vector output format
+% FORMATTYPE  = '-dpsc2';             % Vector output format
 % FORMATTYPE = '-dpdf';               % Full-page PDF
-% FORMATTYPE = '-dsvg';               % Scaleable vector graphics format
+FORMATTYPE = '-dsvg';               % Scaleable vector graphics format
 % FORMATTYPE = '-dpsc';               % Level 3 full-page PostScript, color
 % FORMATTYPE = '-dmeta';              % Enhanced Metafile (WINDOWS ONLY)
 % FORMATTYPE = '-depsc';              % EPS Level 3 Color
@@ -69,14 +69,6 @@ else
     ext = '.ai';
 end
 
-% temp = strsplit(filename, '.');
-% if numel(temp) > 1
-%     filename = [temp{1} '.' ext];
-% else
-%     filename = [filename '.' ext];
-% end
-% clear temp
-
 %% MODIFY FIGURE PARAMETERS
 set(gcf, 'Renderer', RENDERER(2:end));
 if FORMATFONT
@@ -96,10 +88,5 @@ print(fig,          ...
 ...      FORMATOPT,    ...
       RENDERER,     ...
       filename);
-  
-%% OPEN FIGURE IN ADOBE ILLUSTRATOR FOR CONVENIENCE
-% if OPENFIG
-%     eval(['!' filename]);
-% end
 
 end

@@ -1,7 +1,8 @@
-function s = test_2Dbimodal(X,varargin)
+function s = test_2Dbimodal(X,h)
 %% TEST_2DBIMODAL   Check for bimodality with respect to elements of X
 %
 %   p = TEST_2DBIMODAL(X)
+%   p = TEST_2DBIMODAL(X,h)
 %
 %   --------
 %    INPUTS
@@ -9,9 +10,7 @@ function s = test_2Dbimodal(X,varargin)
 %      X        :       N x 2 matrix of observations, where each row is an
 %                       observation and each column is a variable.
 %
-%   varargin    :       (Optional) 'NAME',value input argument pairs.
-%
-%       ->  'PLOT'  //  (default: 'off') Set to 'on' to show plots.
+%      h        :       (Optional) Figure axes handle.
 %
 %   --------
 %    OUTPUT
@@ -26,19 +25,18 @@ function s = test_2Dbimodal(X,varargin)
 %   See also: WHITENROWS
 
 %% DEFAULTS
-PLOT = 'off';
-
-%% PARSE VARARGIN
-for iV = 1:2:numel(varargin)
-    eval([upper(varargin{iV}) '=varargin{iV+1};']);
+if nargin < 2
+   doPlot = false;
+else
+   doPlot = true;
 end
 
 %% WHITEN DATA
 X = whitenRows(X.').';
 
 %% PLOT DATA
-if strcmpi(PLOT,'on')
-    scatter(X(:,1),X(:,2),5,'filled',...
+if doPlot
+    scatter(h,X(:,1),X(:,2),5,'filled',...
         'MarkerFaceColor',[0.3 0.3 0.6],...
         'MarkerEdgeColor','none');
 end

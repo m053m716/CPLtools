@@ -6,9 +6,16 @@ ch = obj.Data.UI.ch;
 aux = obj.Data.spk.feat{ch};
 
 % Get TIME binning vector for plotting features vs time (mins)
-tmax = numel(obj.Data.spk.peak_train{ch})/obj.Data.spk.fs(ch)/60;
-ts = find(obj.Data.spk.peak_train{ch})./obj.Data.spk.fs(ch)./60;
-
+if issparse(obj.Data.spk.peak_train)
+   imax = numel(obj.Data.spk.peak_train{ch});
+   iTs = find(obj.Data.spk.peak_train{ch});
+else
+   imax = max(obj.Data.spk.peak_train{ch});
+   iTs = obj.Data.spk.peak_train{ch};
+end
+tmax = imax/obj.Data.spk.fs(ch)/60;
+ts = iTs./obj.Data.spk.fs(ch)./60;
+   
 cla(obj.Features3D);
 cla(obj.Features2D);
 
@@ -36,7 +43,7 @@ for iC = 1:obj.Data.NCLUS_MAX
             obj.Data.spk.include.cur{ch};
       end
    else
-      fi = [];
+      fi = false(size(obj.Data.cl.num.class.cur{ch}));
    end
    
    X = aux(fi, feat_ind);

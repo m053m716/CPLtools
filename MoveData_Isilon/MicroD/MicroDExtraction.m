@@ -16,7 +16,6 @@ folder3 = files_in{1,3};
 
 fs = 35714;
 probe = '_P1_';
-gitInfo = files_in{1,4}; %#ok<*NASGU>
 ani = files_in{1,3}(1:(find(files_in{1,3} == '_',1,'first')-1));
 trial = files_in{1,3}((find(files_in{1,3} == '_',1,'first')+1):end);
 
@@ -39,7 +38,10 @@ end
 
 for x = 1:length(mdfiles)
     [data,spikes] = LVM2mat(fullfile('\\kumc.edu\data\research\SOM RSCH\NUDOLAB\Recorded_Data',folder1,folder2,folder3,mdfiles{x})); %#ok<*ASGLU>
+    if isempty(data)
+       continue
+    end
     chan = mdfiles{x}((find(mdfiles{x} == '_',1,'last')+1):(find(mdfiles{x} == '_',1,'last')+3));
-    parsave(fullfile('\\kumc.edu\data\research\SOM RSCH\NUDOLAB\Processed_Data\Extracted_Data_To_Move',folder1,folder2,ani,trial,[trial '_RawData'],[trial '_Raw' probe 'Ch_' chan '.mat']),'data',data,'fs',fs,'gitInfo',gitInfo);
-    parsave(fullfile('\\kumc.edu\data\research\SOM RSCH\NUDOLAB\Processed_Data\Extracted_Data_To_Move',folder1,folder2,ani,trial,[trial '_Digital'],[trial '_SPKS' probe 'Ch_' chan '.mat']),'spikes',spikes,'gitInfo',gitInfo);
+    parsave(fullfile('\\kumc.edu\data\research\SOM RSCH\NUDOLAB\Processed_Data\Extracted_Data_To_Move',folder1,folder2,ani,trial,[trial '_RawData'],[trial '_Raw' probe 'Ch_' chan '.mat']),'data',data,'fs',fs);
+    parsave(fullfile('\\kumc.edu\data\research\SOM RSCH\NUDOLAB\Processed_Data\Extracted_Data_To_Move',folder1,folder2,ani,trial,[trial '_Digital'],[trial '_SPKS' probe 'Ch_' chan '.mat']),'spikes',spikes);
 end

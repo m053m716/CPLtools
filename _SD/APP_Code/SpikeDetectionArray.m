@@ -1,4 +1,4 @@
-function [spikedata,pars] = SpikeDetectionArray(data, pars)
+function [spikedata,pars] = SpikeDetectionArray(data,pars,rawData)
 %% SPIKEDETECTIONARRAY  Main sub-function for thresholding and detection
 %
 %   spikedata = SPIKEDETECTIONARRAY(data,pars)
@@ -12,6 +12,10 @@ function [spikedata,pars] = SpikeDetectionArray(data, pars)
 %     pars      :       Parameter structure that contains things like the
 %                       sampling frequency, which will be passed through to
 %                       other sub-functions called from SPIKEDETECTIONARRAY
+%
+%  rawData      :       (Optional) Added in cases where 'raw' is selected
+%                                  for pars.FEAT in order to utilize
+%                                  elements of the RAW waveform.
 %
 %   --------
 %    OUTPUT
@@ -178,11 +182,10 @@ if exist('E','var')~=0
    E(out_of_record) = [];
 end
 
+[peak_train,spikes] = Build_Spike_Array(data,ts,pars,p2pamp);
+
 %% BUILD SPIKE SNIPPET ARRAY AND PEAK_TRAIN
 if (any(ts)) % If there are spikes in the current signal
-   
-   [peak_train,spikes] = Build_Spike_Array(data,ts,p2pamp,pars);
-   
    %No interpolation in this case
    if length(spikes) > 1
       %eliminates borders that were introduced for interpolation
@@ -194,37 +197,60 @@ if (any(ts)) % If there are spikes in the current signal
    if size(spikes,1) > pars.MIN_SPK % Need minimum number of spikes
       features = wave_features(spikes,pars);
       features = features./std(features);
+      
+      switch pars.FEAT
+         case 'raw'
+            [features,rawSpikes] = AddRaw_Features(features,rawData,ts,pars);
+         otherwise
+            rawSpikes = [];
+      end
+      
       if ~any(isnan(p2pamp))
          tmp = (reshape(p2pamp,size(features,1),1)./max(p2pamp)-0.5)*3.0;
          features = [features, tmp];
+         if ~ismember({'pk-amp'},pars.FEAT_NAMES)
+            pars.FEAT_NAMES = [pars.FEAT_NAMES, {'pk-amp'}];
+         end
       end
       if ~any(isnan(pp))
          tmp = (reshape(pp,size(features,1),1)./max(pp)-0.5)*3.0;
          features = [features, tmp];
+         if ~ismember({'pk-prom'},pars.FEAT_NAMES)
+            pars.FEAT_NAMES = [pars.FEAT_NAMES, {'pk-prom'}];
+         end
       end
       if ~any(isnan(pw))
          tmp = (reshape(pw,size(features,1),1)./max(pw)-0.5)*3.0;
          features = [features, tmp];
+         if ~ismember({'pk-width'},pars.FEAT_NAMES)
+            pars.FEAT_NAMES = [pars.FEAT_NAMES, {'pk-width'}];
+         end
       end
       if exist('E','var')~=0
          tmp = (reshape(E,size(features,1),1)./max(E)-0.5)*3.0;
          features = [features, tmp];
+         if ~ismember({'pk-energy'},pars.FEAT_NAMES)
+            pars.FEAT_NAMES = [pars.FEAT_NAMES, {'pk-energy'}];
+         end
       end
    else
       % Just make features reflect poor quality of (small) cluster
       features = randn(size(spikes,1),pars.NINPUT) * 10;
+      rawSpikes = [];
    end
    
 else % If there are no spikes in the current signal
    peak_train = sparse(double(pars.npoints) + double(pars.w_post), double(1));
    spikes = [];
    features = [];
+   rawSpikes = [];
 end
 
 %% ASSIGN OUTPUT
 spikedata.peak_train = peak_train;      % Spike (neg.) peak times
 spikedata.artifact = artifact;          % Artifact times
 spikedata.spikes = spikes;              % Spike snippets
+spikedata.rawspikes = rawSpikes;
 spikedata.features = features;          % Wavelet features
 spikedata.pp = pp;                      % Prominence (peak min. for 'adapt')
 spikedata.pw = pw;                      % Width (peak max. for 'adapt')

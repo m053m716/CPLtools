@@ -1,4 +1,4 @@
-function [inspk,K] = wave_features(spikes,pars)
+function [inspk,K] = wave_features(spikes,pars,interpflag)
 %% WAVE_FEATURES Calculates the spike features
 %
 %   [inspk,K] = WAVE_FEATURES(spikes,pars)
@@ -11,6 +11,9 @@ function [inspk,K] = wave_features(spikes,pars)
 %                       each spike "snippet."
 %
 %     pars      :       Parameters structure from SPIKEDETECTCLUSTER.
+%
+%  interpflag   :       (Optional) flag indicating whether to interpolate.
+%                                   If not specified, default is true.
 %
 %   --------
 %    OUTPUT
@@ -37,6 +40,9 @@ function [inspk,K] = wave_features(spikes,pars)
 %                                          documentation.
 
 %% GET VARIABLES
+if nargin < 3
+   interpflag = true;
+end
 N =size(spikes,1);   % # spikes
 
 if N <= 10
@@ -57,23 +63,30 @@ if N <= 10
 end
 
 %% INTERPOLATE SPIKES
-pars.N_INTERP_SAMPLES = max(size(spikes,2),pars.N_INTERP_SAMPLES);
-spikes = interp1(1:size(spikes,2),...
-   spikes.',...
-   linspace(1,size(spikes,2),pars.N_INTERP_SAMPLES),...
-   'spline').';
+if interpflag
+   nScales = pars.NSCALES;
+   n_interp = max(size(spikes,2),pars.N_INTERP_SAMPLES);
+   spikes = interp1(1:size(spikes,2),...
+      spikes.',...
+      linspace(1,size(spikes,2),n_interp),...
+      'spline').';
+else % If not interpolating, then looking at concatenated raw signal:
+   nScales = pars.NSCALES + 2;
+   n_interp = size(spikes,2);
+end
 M =size(spikes,2);   % # samples per spike
 
 %% CALCULATES FEATURES
 switch pars.FEAT
    case 'wav' % Currently the best option [8/11/2017 - MM]
       K = pars.NINPUT;
-      cc = zeros(N,floor(pars.N_INTERP_SAMPLES/2));
+%       cc = zeros(N,max(K,floor(n_interp/2)));
+      cc = zeros(N,floor(n_interp/2));
       for iN=1:N  % Wavelet decomposition (been using 3 scales, 'bior1.3')
          [C,L] = wavedec(spikes(iN,:), ...
-            pars.NSCALES, ...
+            nScales, ...
             pars.WAVELET);
-         cc(iN,:) = C((sum(L(1:pars.NSCALES))+2):(end-1));
+         cc(iN,:) = C((sum(L(1:nScales))+2):(end-1));
       end
       
       % Remove columns (features) that are mostly 0
@@ -83,7 +96,7 @@ switch pars.FEAT
             aux = [aux, cc(:,iC)]; %#ok<AGROW>
          end
       end
-
+      
       % Normalize features
       cc = cc - mean(cc,1);
       cc = cc./std(cc,[],1);
@@ -109,7 +122,7 @@ switch pars.FEAT
          catch
             p_loc = [];
          end
-                 
+         
          try
             [n_pk, n_loc] = findpeaks(-y);
             [n_pk,ind] = sort(n_pk,'descend');
@@ -128,7 +141,7 @@ switch pars.FEAT
                flag = false;
             elseif isempty(n_loc)
                flag = true;
-            end   
+            end
          end
          
          % Add coeffs based on skew until enough coefficients
@@ -173,7 +186,7 @@ switch pars.FEAT
       spikes_interp = interp1((0:(size(spikes,2)-1))/pars.FS, ...
          spikes.', ...
          linspace(0,(size(spikes,2)-1)/pars.FS, ...
-         pars.N_INTERP_SAMPLES));
+         n_interp));
       
       spikes_interp = spikes_interp.';
       
@@ -182,6 +195,97 @@ switch pars.FEAT
       Z = fastICA(spikes_interp.',2);
       cc = [amax - amin,imax-imin,Z.'];
       coeff = 1:K;
+      
+   otherwise % e.g. 'raw'
+      K = pars.NINPUT;
+      cc = zeros(N,floor(n_interp/2));
+      for iN=1:N  % Wavelet decomposition (been using 3 scales, 'bior1.3')
+         [C,L] = wavedec(spikes(iN,:), ...
+            nScales, ...
+            pars.WAVELET);
+         cc(iN,:) = C((sum(L(1:nScales))+2):(end-1));
+      end
+      
+      % Remove columns (features) that are mostly 0
+      aux = [];
+      for iC = 1:size(cc,2)
+         if sum(abs(cc(:,iC))<eps)<0.1*size(cc,1)
+            aux = [aux, cc(:,iC)]; %#ok<AGROW>
+         end
+      end
+      
+      % Normalize features
+      cc = cc - mean(cc,1);
+      cc = cc./std(cc,[],1);
+      
+      % Find kurtosis peaks in the time-series distribution
+      y = kurtosis(cc);
+      [k_pk,k_loc] = findpeaks(y);
+      try
+         [~,ind] = sort(k_pk,'descend');
+         loc = k_loc(ind);
+      catch
+         loc = [];
+      end
+      
+      if (numel(loc) >= K)
+         coeff = loc(1:K);
+      else  % Not enough coefficients, look for skewness
+         y = skewness(cc);
+         try
+            [p_pk, p_loc] = findpeaks(y);
+            [p_pk,ind] = sort(p_pk,'descend');
+            p_loc = p_loc(ind);
+         catch
+            p_loc = [];
+         end
+         
+         try
+            [n_pk, n_loc] = findpeaks(-y);
+            [n_pk,ind] = sort(n_pk,'descend');
+            n_loc = n_loc(ind);
+         catch
+            n_loc = [];
+         end
+         
+         % Decide which one to include first
+         if ~isempty(p_loc) && ~isempty(n_loc)
+            flag = p_loc(1) > n_loc(1);
+         elseif isempty(p_loc) && isempty(n_loc)
+            flag = true;
+         else
+            if isempty(p_loc)
+               flag = false;
+            elseif isempty(n_loc)
+               flag = true;
+            end
+         end
+         
+         % Add coeffs based on skew until enough coefficients
+         pk_count = 0;
+         while ((pk_count <= max(numel(p_pk),numel(n_pk))) && ...
+               (numel(loc) < K))
+            pk_count = pk_count + 0.5;
+            
+            if (flag && (pk_count <= numel(p_pk)))
+               loc = [loc, p_loc(ceil(pk_count))];          %#ok<AGROW>
+            elseif (~flag && (pk_count <= numel(n_pk)))
+               loc = [loc, n_loc(ceil(pk_count))];          %#ok<AGROW>
+            end
+            loc = unique(loc);
+         end
+         
+         % If still need coefficients, add random ones
+         if numel(loc) < K
+            vec = 1:size(cc,2);
+            vec = setdiff(vec,loc);
+            n_remain = K - numel(loc);
+            
+            loc = [loc, vec(randperm(numel(vec),n_remain))];
+         end
+         
+         coeff = loc(1:K);
+      end
 end
 
 %% CREATES INPUT MATRIX FOR SPC

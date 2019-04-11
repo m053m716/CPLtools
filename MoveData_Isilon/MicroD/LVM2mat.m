@@ -4,8 +4,8 @@ function [data,spikes] = LVM2mat(NAME)
 %% Initialize variables.
 delimiter = '\t';
 if nargin<=2
-    startRow = 1;
-    endRow = inf;
+   startRow = 1;
+   endRow = inf;
 end
 
 %% Open the text file.
@@ -28,15 +28,32 @@ fclose(fileID);
 %% Create output variable
 hold_data = cell2mat(dataArray(useCols));
 
-if size(hold_data,2) > 2
-    
-elseif size(hold_data,2) == 2
-    data = single(hold_data(:,1));
-    spikes = hold_data(:,2);
-    spikes(spikes ~= 0) = 1;
-    spikes = sparse(spikes);
-else
-    
+[~,name,~] = fileparts(NAME);
+dims = size(hold_data);
+
+switch dims(2)
+  
+   case 2
+      data = single(hold_data(:,1));
+      spikes = hold_data(:,2);
+      spikes(spikes ~= 0) = 1;
+      spikes = sparse(spikes);
+   case 4
+      data = single(hold_data(:,1));
+      spikes = hold_data(:,2);
+      
+      idx = find(~isnan(hold_data(:,4)));
+      spikes(idx) = 0;
+      spikes(spikes ~= 0) = 1;
+      spikes = sparse(spikes);
+      
+      data(idx) = nan;
+      
+   otherwise
+      
+      data = [];
+      spikes = [];
+      warning('%s data is formatted incorrectly (%d x %d).',name,dims(1),dims(2));
 end
 
 end

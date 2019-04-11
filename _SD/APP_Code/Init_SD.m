@@ -4,10 +4,11 @@ function pars = Init_SD(varargin)
 %   pars = INIT_SD('NAME',value,...)
 %
 % By: Max Murphy (08/14/2017)
+%                 01/09/2019 :: 4.0.0 -> 4.0.1 = Fix FEAT_NAMES generation
 
 %% DEFAULTS
 % General settings
-VERSION  = 'v4.0.0';     % Version, to be passed with parameters
+VERSION  = 'v4.0.1';     % Version, to be passed with parameters
 LIBDIR   = 'C:\MyRepos\_SD\APP_Code';% Location of associated sub-functions
 DEF_DIR  = 'P:\';        % Default location to look for extracted data file
 ED_ID = '\*P*Ch*.mat';    % Extracted data identifier (for input)
@@ -78,14 +79,13 @@ SC_VER = 'SPC';   % Version of spike clustering
     % Parameters
     N_INTERP_SAMPLES = 250; % Number of interpolated samples for spikes
     MIN_SPK  = 100;       % Minimum spikes before sorting
-    TEMPSD   = 3.5;      % Cluster template max radius for template matching
+    TEMPSD   = 1.5;      % Cluster template max radius for template matching
     TSCALE   = 3.5;      % Scaling for timestamps of spikes as a feature
     USE_TS_FEATURE = false; % Add timestamp as an additional feature for SPC?
-    FEAT     = 'wav';    % 'wav' or 'pca' or 'ica' for spike features
+    FEAT     = 'wav';    % 'raw' or 'wav' or 'pca' or 'ica' for spike features
     WAVELET  = 'bior1.3';% 'haar' 'bior1.3' 'db4' 'sym8' all examples
     NINPUT   = 12;       % Number of feature inputs for clustering
     NSCALES  = 3;        % Number of scales for wavelet decomposition
-    
 %% PARSE VARARGIN
 if numel(varargin)==1
     varargin = varargin{1};
@@ -192,5 +192,22 @@ pars = struct;
     pars.WAVELET = WAVELET;
     pars.USE_CLUSTER = USE_CLUSTER;
     pars.VERSION = VERSION;
+    
+    switch pars.FEAT
+       case 'raw'
+          pars.FEAT_NAMES = cell(1,2*pars.NINPUT + 1);
+          for ii = 1:pars.NINPUT
+             pars.FEAT_NAMES{ii} = sprintf('wav-%02d',ii);
+          end
+          for ik = 1:pars.NINPUT
+             pars.FEAT_NAMES{ii+ik} = sprintf('raw-%02d',ik);
+          end
+          pars.FEAT_NAMES{ii+ik+1} = 'raw-mean';
+       otherwise
+          pars.FEAT_NAMES = cell(1,pars.NINPUT);
+          for ii = 1:pars.NINPUT
+             pars.FEAT_NAMES{ii} = sprintf('%s-%02d',pars.FEAT,ii);
+          end
+    end
     
 end

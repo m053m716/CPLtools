@@ -166,6 +166,8 @@ handles.spk.include.cur = cell(handles.files.N,1);
 handles.spk.fs = nan(handles.files.N,1);
 handles.spk.nfeat = nan(handles.files.N,1);
 handles.spk.peak_train = cell(handles.files.N,1);
+% in_feat = load(handles.spk.fname{1},'features');
+% handles.NCLUS_MAX = min(handles.NCLUS_MAX,size(in_feat.features,2));
 handles.cl.num.centroid=cell(handles.files.N,handles.NCLUS_MAX);
 handles.cl.tag.name = cell(handles.files.N,1);
 handles.cl.tag.val = cell(handles.files.N,1);
@@ -191,6 +193,7 @@ for iCh = 1:handles.files.N % get # clusters per channel
    % Load classes. 1 == OUT; all others (up to NCLUS) are valid
    if sorted_flag
       in_class = load(handles.cl.fname{iCh},'class');
+      in_class.class = reshape(in_class.class,numel(in_class.class),1);
    else
       in_class = struct;
       in_class.class = ones(size(in_feat.features,1),1);

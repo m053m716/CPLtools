@@ -1,7 +1,8 @@
-function [peak_train,spikes] = Build_Spike_Array(data,ts,p2pamp,pars)
+function [peak_train,spikes] = Build_Spike_Array(data,ts,pars,p2pamp)
 %% BUILD_SPIKE_ARRAY    Creates array of spike snippet waveforms
 %
 %   peak_train = BUILD_SPIKE_ARRAY(data,ts,pars)
+%   peak_train = BUILD_SPIKE_ARRAY(data,ts,pars,p2pamp)
 %
 %   --------
 %    INPUTS
@@ -10,9 +11,6 @@ function [peak_train,spikes] = Build_Spike_Array(data,ts,p2pamp,pars)
 %                       removed already.
 %
 %      ts       :       Spike times (samples)
-%
-%     p2pamp    :       Vector of spike amplitudes (should be same length
-%                       as ts).
 %
 %     pars      :       Parameter struct from SPIKEDETECTCLUSTER. Contains
 %                       the fields:
@@ -24,6 +22,9 @@ function [peak_train,spikes] = Build_Spike_Array(data,ts,p2pamp,pars)
 %       ->      ls      \\  Total length of spike (samples).
 %
 %       ->      numpoints \\ Number of points in data.
+%
+%     p2pamp    :       Vector of spike amplitudes (should be same length
+%                       as ts).
 %
 %   --------
 %    OUTPUT
@@ -37,6 +38,10 @@ function [peak_train,spikes] = Build_Spike_Array(data,ts,p2pamp,pars)
 % Adapted by: Max Murphy    v1.0    08/03/2017  Original version (R2017a)
 
 %% 
+if nargin < 4
+   p2pamp = ones(size(ts)) * 100;
+end
+
 nspk = numel(ts);
 spikes = zeros(nspk,pars.ls+4);
 data = [data, zeros(1, pars.w_post)]; % Add zeros in case of spikes at end of record

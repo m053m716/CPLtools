@@ -126,15 +126,18 @@ end
 clc;
 Data = cell(pnum,1);
 pCh = cell(pnum,1);
+name = cell(pnum,1);
 for iP = 1:pnum
    iCount = 0;
-   pCh{iP} = Ch(abs(pval-iP)<eps);
+   idx = abs(pval-iP)<eps;
+   name{iP} = Name(idx);
+   pCh{iP} = Ch(idx);
    pCh{iP} = reshape(pCh{iP},1,numel(pCh{iP}));
    for iCh = pCh{iP}
       iCount = iCount + 1;
-      fprintf(1,'\n\t Loading %s...', Name{abs(Ch-iCh)<eps});
-      x = load(fullfile(DIR,...
-         [Name{abs(Ch-iCh)<eps & abs(pval.'-iP)<eps} '.mat']));
+      fName = [name{iP}{iCount} '.mat'];
+      fprintf(1,'\n\t Loading %s...', fName);
+      x = load(fullfile(DIR,fName));
       if iCount == 1
          Data{iP} = nan(numel(pCh{iP}),numel(x.data));
          if isfield(x,'fs')
@@ -195,7 +198,7 @@ else
        for iCh = 1:numel(pCh{iP})
            fprintf(1,'\n\t Saving %s...',fname{iCh,iP});
            % Put data into proper format
-           data = Data(iCh,:); %#ok<NASGU>
+           data = Data{iP}(iCh,:); %#ok<NASGU>
            save(fullfile(Block,Car_Folder,fname{iCh,iP}),'data','fs','-v7.3');
            fprintf(1,'complete.\n');
        end
