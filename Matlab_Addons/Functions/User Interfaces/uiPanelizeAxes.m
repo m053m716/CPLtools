@@ -65,15 +65,12 @@ nCol = ceil(nAxes/nRow);
 widthAx  = (1 - xOffset*(nCol + 1))/nCol;
 heightAx = (1 - yOffset*(nRow + 1))/nRow;
 
-widthPos = widthAx + xOffset;
-heightPos = heightAx + yOffset;
-
 %% INITIALIZE AXES ARRAY
 
 ax = cell(nAxes,1);
 for ii = 1:nAxes
-   xpos = mod(ii-1,nCol)*widthPos + xOffset;
-   ypos = 1 - ceil(ii/nRow)*heightPos;
+   xpos = mod(ii-1,nCol)/nCol + xOffset;
+   ypos = 1 - ceil(ii/nCol)/nRow + yOffset;
    
    pos = [xpos ypos widthAx heightAx];
    ax{ii} = axes(parent,...

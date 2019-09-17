@@ -70,8 +70,8 @@ DEF_DIR = 'P:/Rat';
 % For finding clusters
 CLUSTER_LIST = {'CPLMJS'; 'CPLMJS2'; 'CPLMJS3'}; % MJS cluster profiles
 NWR          = [1,2];     % Number of workers to use
-WAIT_TIME    = 45;        % Wait time for looping if using findGoodCluster
-INIT_TIME    = 2;         % Wait time before initializing findGoodCluster
+WAIT_TIME    = 0.5;        % Wait time for looping if using findGoodCluster
+INIT_TIME    = 0.1;         % Wait time before initializing findGoodCluster
 
 %% PARSE VARARGIN
 if nargin==1
@@ -143,7 +143,7 @@ wait(myJob, 'queued');
 fprintf(1,'Queued job:  %s\n',Name);
 fprintf(1,'\n');
 wait(myJob, 'running');
-pause(10);
+pause(0.25);
 fprintf(1,'\n');
 fprintf(1,'->\tJob running.\n');
 fprintf(1,'Using Server: %s\n->\t %d/%d workers assigned.\n', ...

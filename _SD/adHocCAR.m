@@ -88,16 +88,19 @@ for iF = 1:nCh
         Ch(1,iF) = str2double(Name{iF}(end-1:end));
     end
 end
-name = strsplit(Name{1},'_');
+block_name = strsplit(Name{1},'_');
 idate = regexp(Name{1},'\d\d\d\d[_]\d\d[_]\d\d','ONCE');
 if isempty(idate)
-   if numel(name) > 5
-       name = strjoin(name(1:2),'_');
+   if numel(block_name) > 5
+       block_name = strjoin(block_name(1:2),'_');
    else
-       name = name{1};
+       block_name = block_name{1};
    end
 else
-   name = [name{1} '_' Name{1}(idate:(idate+9))];
+   block_name = [block_name{1} '_' Name{1}(idate:(idate+9))];
+   if ~ischar(block_name)
+      block_name = block_name{1};
+   end
 end
 
 %% GET NUMBER OF PROBES AND PROBE ASSIGNMENTS
@@ -119,7 +122,7 @@ if exist('USE_CHANS','var')~=0
 end
 
 if USE_CLUSTER
-    set(myJob,'Tag',['Loading filtered channels for ' name '...']); %#ok<*UNRCH>
+    set(myJob,'Tag',['Loading filtered channels for ' block_name '...']); %#ok<*UNRCH>
 end
 
 %% LOAD FILTERED CHANNELS
@@ -151,7 +154,7 @@ end
 clear x
 
 if USE_CLUSTER
-    set(myJob,'Tag',['Re-referencing and saving data for ' name '...']);
+    set(myJob,'Tag',['Re-referencing and saving data for ' block_name '...']);
 end
 
 %% DO RE-REFERENCING
@@ -206,7 +209,7 @@ else
 end
 
 if USE_CLUSTER
-    set(myJob,'Tag',['Complete: ad hoc CAR for ' name]);
+    set(myJob,'Tag',['Complete: ad hoc CAR for ' block_name]);
 end
 
 end

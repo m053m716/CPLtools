@@ -66,6 +66,18 @@ for iF = 1:numel(F)
             delete(fname);
          end
          
+         fname = fullfile(DIR,[F(iF).name '_wav-sneo_CAR_Spikes'],...
+            [F(iF).name '_ptrain_' p_list{ii} '_Ch_' ch_list{ii} '.mat']);
+         if exist(fname,'file')~=0
+            delete(fname);
+         end
+         
+         fname = fullfile(DIR,[F(iF).name '_wav-sneo_SPC_CAR_Clusters'],...
+            [F(iF).name '_clus_' p_list{ii} '_Ch_' ch_list{ii} '.mat']);
+         if exist(fname,'file')~=0
+            delete(fname);
+         end
+         
       catch
          fprintf(1,'No channel %s on probe %s for %s.',...
             ch_list{ii},p_list{ii},F(iF).name);

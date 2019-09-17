@@ -55,10 +55,11 @@ function mmDS(varargin)
 % Main options
 pars = struct;
 pars.DEC_FS = 1000;    % Desired sample rate (Hz; may not end up exact)
-pars.NOTCH = [57,  63;  ...
-              117, 123; ... % If empty, no notch applied; otherwise, use
-              177, 183; ... % bands specified by rows of this matrix.
-              237, 243];
+% pars.NOTCH = [57,  63;  ...
+%               117, 123; ... % If empty, no notch applied; otherwise, use
+%               177, 183; ... % bands specified by rows of this matrix.
+%               237, 243];
+pars.NOTCH = [57, 63];
 
 % Directory info
 pars.DEF_DIR = 'P:\Rat\tDCS';    % Default UI selection direcotry

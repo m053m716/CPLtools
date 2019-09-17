@@ -16,7 +16,7 @@ function lineCallback(src,~,varargin)
 %                       cell array:
 %                       {@lineCallback,'NAME1',value1,'NAME2',value2,...}
 %
-%                       => 'SEL_COL': (def [0.4 0.4 0.8]; Highlight color 
+%                       => 'SEL_COL': (def [0.4 0.4 0.8]; Highlight color
 %                                      for line when it is clicked)
 %
 %                       => 'UNSEL_COL': (def [0.94 0.94 0.94]; Unselect
@@ -40,30 +40,36 @@ function lineCallback(src,~,varargin)
 %% DEFAULTS
 SEL_COL = [0.4 0.4 0.8];
 UNSEL_COL = [0.94 0.94 0.94];
-BRING_FORWARD = false;
+BRING_FORWARD = true;
 
 %% PARSE VARARGIN
 for iV = 1:2:numel(varargin)
-    eval([upper(varargin{iV}) '=varargin{iV+1};']);
+   eval([upper(varargin{iV}) '=varargin{iV+1};']);
 end
 
 %% SWITCH COLORS
 if ~any(src.Color - SEL_COL)
-    src.Color = UNSEL_COL;
-    src.LineWidth = 2;
+   src.Color = UNSEL_COL;
+   src.LineWidth = 1;
 else
-    src.Color = SEL_COL;
-    src.LineWidth = 4;
+   src.Color = SEL_COL;
+   src.LineWidth = 2;
 end
 
 %% (OPTIONAL) BRING LINE TO FRONT
 if BRING_FORWARD
-    p = src.Parent;
-    ind = find(abs(p.UserData-src.UserData)<eps,1,'first');
-    vec = 1:numel(p.UserData);
-    vec = vec(abs(vec-ind)>eps);
-    p.Children = p.Children([ind,vec]);
-    p.UserData = p.UserData([ind,vec]);
+   p = src.Parent;
+   if ~isempty(p.UserData)
+      n = numel(p.Children);
+      nU = numel(p.UserData);
+      ext = (nU+1):(nU+(n - nU));
+      
+      ind = find(p.UserData==src.UserData,1,'first');
+      
+      vec = setdiff(p.UserData,ind);
+      p.Children = p.Children([ind,vec,ext]);
+      p.UserData = p.UserData([ind,vec]);
+   end
 end
 
 end
