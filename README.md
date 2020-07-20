@@ -5,6 +5,7 @@ Primarily tools for pre-processing and simple/common analyses used in extracellu
 ## Matlab_Addons
 
 This sub-repository is typically added to the Matlab path for most machines at our lab.
+_Note: `CPLtools` assumes that at some point, the end-user adds this entire folder and sub-folders to the Matlab search path._
 
 ## MoveData_Isilon
 
